@@ -101,7 +101,7 @@ try:
     print("Press r   to receive data")
 
     seconds = 2
-    send_to_who = 30
+    send_to_who = 0
 
     while True:
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
