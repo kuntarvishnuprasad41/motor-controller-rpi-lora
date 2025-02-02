@@ -47,7 +47,7 @@ def send_deal():
             sys.stdout.write(rec)
             sys.stdout.flush()
     
-    logger.debug(f"Input received: {get_rec}")
+    logger.debug(f"Input received: {get_rec} : Logger")
     get_t = get_rec.split(",")
     
     try:
