@@ -20,7 +20,7 @@ def get_cpu_temp():
 
 
 # Initialize Device 2 (Address 30)
-node2 = sx126x.sx126x(serial_num="/dev/ttyS1", freq=433, addr=30, power=22, rssi=False)
+node2 = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=30, power=22, rssi=False)
 
 # Send CPU temperature to Device 1 (Address 1)
 def send_cpu_to_device_1():

@@ -83,6 +83,15 @@ def receive_data_continuously():
         
         if data is not None:  # Check if data has been received
             print(f"Received: {data}")
+            
+            # Send received data to node 30
+            node.send_to = 30  # Set the destination address to 30
+            node.addr_temp = node.addr  # Store the current address temporarily
+            node.set(node.freq, node.send_to, node.power, node.rssi)  # Set node parameters
+            node.send(data)  # Send the data to node 30
+            time.sleep(0.2)  # Add a short delay to ensure the message is sent properly
+            node.set(node.freq, node.addr_temp, node.power, node.rssi)  # Restore the original address
+
         time.sleep(0.1)
 
 
