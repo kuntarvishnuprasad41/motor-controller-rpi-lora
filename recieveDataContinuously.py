@@ -30,7 +30,7 @@ try:
         
         if received_data:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            print(f"[{current_time}] Received: {received_data}")
+            print(f"[{current_time}] Received: {received_data} : ReceiveDataContinuously")
         
         time.sleep(0.1)
 
