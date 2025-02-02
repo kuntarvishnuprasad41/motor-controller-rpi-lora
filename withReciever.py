@@ -13,16 +13,13 @@ from threading import Timer
 old_settings = termios.tcgetattr(sys.stdin)
 tty.setcbreak(sys.stdin.fileno())
 
-
 def get_cpu_temp():
     tempFile = open("/sys/class/thermal/thermal_zone0/temp")
     cpu_temp = tempFile.read()
     tempFile.close()
     return float(cpu_temp) / 1000
 
-
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=0, power=22, rssi=False)
-
 
 def send_deal():
     get_rec = ""
@@ -114,12 +111,12 @@ try:
             elif c == '\x72':
                 print("Receiving data...")
                 while True:
-                    # Receive and print data
+                    # Receive and print data continuously
                     node.receive()
                     if node.rx_flag:  # Check if data has been received
                         print(f"Received: {node.rx_data}")
                         node.rx_flag = False  # Reset the flag after processing
-                    time.sleep(0.1)
+                    time.sleep(0.1)  # Short delay to avoid overloading the CPU
 
         sys.stdout.flush()
 
