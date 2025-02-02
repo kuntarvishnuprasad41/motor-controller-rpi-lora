@@ -16,17 +16,44 @@ def setup_addresses():
     
     while True:
         try:
-            sender_addr = input("Enter sender address (0-255): ")
-            sender_addr = int(sender_addr)
+            print("Enter sender address (0-255): ", end='', flush=True)
+            sender_input = ""
+            while True:
+                char = sys.stdin.read(1)
+                if char == '\n':
+                    break
+                sender_input += char
+                sys.stdout.write(char)
+                sys.stdout.flush()
+            
+            sender_addr = int(sender_input)
             if 0 <= sender_addr <= 255:
-                break
-            print("Address must be between 0 and 255")
+                node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=sender_addr, power=22, rssi=False)
+                print(f"\nDevice initialized with address: {sender_addr}")
+                return node
+            print("\nAddress must be between 0 and 255")
         except ValueError:
-            print("Please enter a valid number")
-    
-    node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=sender_addr, power=22, rssi=False)
-    print(f"Device initialized with address: {sender_addr}")
-    return node
+            print("\nPlease enter a valid number")
+
+def get_receiver_address():
+    while True:
+        try:
+            print("Enter receiver address (0-255): ", end='', flush=True)
+            addr_input = ""
+            while True:
+                char = sys.stdin.read(1)
+                if char == '\n':
+                    break
+                addr_input += char
+                sys.stdout.write(char)
+                sys.stdout.flush()
+            
+            addr = int(addr_input)
+            if 0 <= addr <= 255:
+                return addr
+            print("\nAddress must be between 0 and 255")
+        except ValueError:
+            print("\nPlease enter a valid number")
 
 def send_deal(node):
     get_rec = ""
@@ -78,12 +105,17 @@ class TemperatureSender:
 
     def send_temperature(self):
         while self.running:
-            self.node.addr_temp = self.node.addr
-            self.node.set(self.node.freq, self.receiver_addr, self.node.power, self.node.rssi)
-            self.node.send(f"CPU Temperature: {get_cpu_temp()} C")
-            time.sleep(0.2)
-            self.node.set(self.node.freq, self.node.addr_temp, self.node.power, self.node.rssi)
-            time.sleep(self.interval)
+            try:
+                self.node.addr_temp = self.node.addr
+                self.node.set(self.node.freq, self.receiver_addr, self.node.power, self.node.rssi)
+                self.node.send(f"CPU Temperature: {get_cpu_temp()} C")
+                time.sleep(0.2)
+                self.node.set(self.node.freq, self.node.addr_temp, self.node.power, self.node.rssi)
+                time.sleep(self.interval)
+            except Exception as e:
+                print(f"Error in temperature sender: {e}")
+                self.running = False
+                break
 
     def start(self):
         self.running = True
@@ -107,30 +139,24 @@ def receive_data_continuously(node, temp_sender):
     print("Press Esc to exit receive mode")
     
     while True:
-        received_data = node.receive()
-        
-        if received_data:
-            print(f"Received: {received_data}")
-        
-        time.sleep(0.1)
-
-        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-            c = sys.stdin.read(1)
-            if c == '\x1b':
-                print("Exiting receive mode.")
-                temp_sender.stop()  # Stop temperature sending when exiting
-                break
-
-def get_receiver_address():
-    while True:
         try:
-            addr_input = input("Enter receiver address (0-255): ")
-            addr = int(addr_input)
-            if 0 <= addr <= 255:
-                return addr
-            print("Address must be between 0 and 255")
-        except ValueError:
-            print("Please enter a valid number")
+            received_data = node.receive()
+            
+            if received_data:
+                print(f"Received: {received_data}")
+            
+            time.sleep(0.1)
+
+            if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+                c = sys.stdin.read(1)
+                if c == '\x1b':
+                    print("Exiting receive mode.")
+                    temp_sender.stop()
+                    break
+        except Exception as e:
+            print(f"Error in receive mode: {e}")
+            temp_sender.stop()
+            break
 
 try:
     node = setup_addresses()
