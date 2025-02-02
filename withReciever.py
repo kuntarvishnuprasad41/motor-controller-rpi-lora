@@ -9,7 +9,6 @@ import select
 import termios
 import tty
 from threading import Timer
-from datetime import datetime  # Import to get current date/time
 
 old_settings = termios.tcgetattr(sys.stdin)
 tty.setcbreak(sys.stdin.fileno())
@@ -73,25 +72,13 @@ def send_cpu_continue(send_to_who, continue_or_not=True):
         timer_task.cancel()
         pass
 
-def receive_data_continuously():
-    print("Receiving data continuously...\n")
-    while True:
-        # Receive and print data continuously
-        node.receive()
-        if node.rx_flag:  # Check if data has been received
-            # Get the current date and time
-            current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            # Print received data with the date and time
-            print(f"{current_time} - Received: {node.rx_data}")
-            node.rx_flag = False  # Reset the flag after processing
-        time.sleep(0.1)  # Short delay to avoid overloading the CPU
 
 try:
     time.sleep(1)
     print("Press \033[1;32mEsc\033[0m to exit")
     print("Press \033[1;32mi\033[0m   to send")
     print("Press \033[1;32ms\033[0m   to send cpu temperature every 10 seconds")
-    print("Press \033[1;32mr\033[0m   to receive data continuously")
+    print("Press \033[1;32mr\033[0m   to receive data")
 
     send_to_who = 0
     seconds = 2
@@ -122,7 +109,14 @@ try:
 
             # detect key r to receive data
             elif c == '\x72':
-                receive_data_continuously()
+                print("Receiving data...")
+                while True:
+                    # Receive and print data continuously
+                    node.receive()
+                    if node.rx_flag:  # Check if data has been received
+                        print(f"Received: {node.rx_data}")
+                        node.rx_flag = False  # Reset the flag after processing
+                    time.sleep(0.1)  # Short delay to avoid overloading the CPU
 
         sys.stdout.flush()
 
