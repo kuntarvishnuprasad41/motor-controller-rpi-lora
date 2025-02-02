@@ -39,61 +39,45 @@ def get_cpu_temp():
     except:
         return None
 
-# Send temperature data
-def send_temperature_data(destination_address):
+# Function to get destination address
+def get_destination_address():
     while True:
-        temp = get_cpu_temp()
-        if temp is not None:
-            node.addr_temp = node.addr
-            node.set(node.freq, destination_address, node.power, node.rssi)
-            node.send(f"CPU Temperature: {temp} C")
-            time.sleep(2)  # Send every 2 seconds
-
-# Receive data
-def receive_data():
-    while True:
-        # Receive data and display the message
-        received_data = node.receive()
-        if received_data:
-            print(f"Received data: {received_data}")
-        time.sleep(0.1)
-
-# Handle user input for sending/receiving
-def handle_keyboard_input():
-    # Ask for destination device address
-    while True:
-        destination_address = input("Enter the destination device address (1-255): ")
+        dest_address = input("Enter the destination device address (1-255): ")
         try:
-            destination_address = int(destination_address)
-            if 1 <= destination_address <= 255:
-                break
+            dest_address = int(dest_address)
+            if 1 <= dest_address <= 255:
+                return dest_address
             else:
                 print("Address must be between 1 and 255.")
         except ValueError:
             print("Invalid input. Please enter a valid address between 1 and 255.")
 
-    print(f"Sending data to device with address {destination_address}...")
-    
-    # Start the continuous sending and receiving threads
-    send_thread = threading.Thread(target=send_temperature_data, args=(destination_address,))
-    receive_thread = threading.Thread(target=receive_data)
+# Get destination address
+destination_address = get_destination_address()
 
-    send_thread.daemon = True
-    receive_thread.daemon = True
+# Send temperature data to the destination address
+def send_temperature_data():
+    while True:
+        temp = get_cpu_temp()
+        if temp is not None:
+            node.addr_temp = node.addr
+            node.set(node.freq, destination_address, node.power, node.rssi)
+            node.send("CPU Temperature: " + str(temp) + " C")
+            time.sleep(2)  # Send every 2 seconds
+            node.set(node.freq, node.addr_temp, node.power, node.rssi)
 
-    send_thread.start()
-    receive_thread.start()
+# Function to handle receiving data
+def receive_data():
+    while True:
+        # Receive and print data
+        node.receive()
+        if node.rx_flag:
+            print(f"Received from address {node.rx_addr}: {node.rx_data}")
+            node.rx_flag = False  # Reset the flag after processing
+        time.sleep(0.1)
 
-    # Wait for the threads to finish
-    send_thread.join()
-    receive_thread.join()
-
-# Main loop to detect key presses
-def main():
-    print(f"Current device address: {current_device_address}")  # Display current address first
-    print("Press Esc to exit")
-    print("Press Enter to start sending/receiving data")
-
+# Keyboard input handler
+def handle_keyboard_input():
     while True:
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
             c = sys.stdin.read(1)
@@ -101,15 +85,23 @@ def main():
             # Detect key Esc to exit
             if c == '\x1b':
                 break
-            # Detect Enter to start sending/receiving
-            elif c == '\r':
-                handle_keyboard_input()
 
+            # Detect key r to start sending and receiving
+            elif c == '\x72':  # 'r' key
+                print(f"Sending and receiving data to/from address {destination_address}")
+                threading.Thread(target=send_temperature_data, daemon=True).start()
+                threading.Thread(target=receive_data, daemon=True).start()
+
+        sys.stdout.flush()
+
+try:
+    print("Current device address:", current_device_address)
+    print("Press \033[1;32mEsc\033[0m to exit")
+    print("Press \033[1;32mr\033[0m to start sending and receiving data")
+
+    handle_keyboard_input()
+
+except Exception as e:
+    print(f"Error: {e}")
+finally:
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print("\nProgram interrupted.")
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
