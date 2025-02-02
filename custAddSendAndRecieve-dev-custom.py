@@ -8,13 +8,23 @@ import select
 import termios
 import tty
 import sx126x
-import random  # For generating random address
 from threading import Timer
 
-# Generate a random device address (between 1 and 255, since 0 is reserved for broadcast)
-current_device_address = random.randint(1, 255)
+# Device setup
+def get_device_address():
+    while True:
+        address = input("Enter the device address (1-255): ")
+        try:
+            address = int(address)
+            if 1 <= address <= 255:
+                return address
+            else:
+                print("Address must be between 1 and 255.")
+        except ValueError:
+            print("Invalid input. Please enter a valid address between 1 and 255.")
 
-# Device setup with random address
+# Initialize the node with a user-defined address
+current_device_address = get_device_address()
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_device_address, power=22, rssi=False)
 
 old_settings = termios.tcgetattr(sys.stdin)
