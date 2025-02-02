@@ -21,10 +21,12 @@ def get_cpu_temp():
 def receive_data_continuously():
     print("Receiving data...")
     while True:
-        node.receive()
-        if node.rx_flag:  # Check if data has been received
-            print(f"Received: {node.rx_data}")
-            node.rx_flag = False  # Reset the flag after processing
+        # Attempt to receive data
+        received_data = node.receive()  # Adjust this based on how the receive function works
+
+        if received_data:
+            print(f"Received: {received_data}")
+        
         time.sleep(0.1)  # Short delay to avoid overloading the CPU
 
         # Check if the user pressed Esc to exit
@@ -33,6 +35,7 @@ def receive_data_continuously():
             if c == '\x1b':  # If the user presses Esc, stop receiving
                 print("Exiting receive mode.")
                 break  # Exit the loop and stop receiving
+
 
 try:
     time.sleep(1)
