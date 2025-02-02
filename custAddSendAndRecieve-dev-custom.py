@@ -26,8 +26,10 @@ def receive_data():
         # Attempt to receive data
         try:
             received_data = node.receive()
-            if received_data:  # Check if data is received
+            if received_data:
                 print(f"Received data from address {node.rx_addr}: {received_data}")
+            else:
+                print("No data received")
         except Exception as e:
             print(f"Error receiving data: {e}")
         time.sleep(0.1)
@@ -38,6 +40,7 @@ def send_data(destination_address):
         # Send temperature to destination address
         node.set(node.freq, destination_address, node.power, node.rssi)
         node.send("CPU Temperature: " + str(get_cpu_temp()) + " C")
+        print(f"Sent data to {destination_address}")
         time.sleep(2)  # Sending every 2 seconds
 
 # Function to get CPU temperature
