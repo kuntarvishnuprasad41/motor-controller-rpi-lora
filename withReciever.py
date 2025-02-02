@@ -9,7 +9,7 @@ import select
 import termios
 import tty
 from threading import Timer
-from datetime import datetime  # Import to get current date/time
+from datetime import datetime
 
 old_settings = termios.tcgetattr(sys.stdin)
 tty.setcbreak(sys.stdin.fileno())
@@ -50,7 +50,6 @@ def send_deal():
     print(" "*100)
     print('\x1b[3A', end='\r')
 
-
 def send_cpu_continue(send_to_who, continue_or_not=True):
     if continue_or_not:
         global timer_task
@@ -74,17 +73,29 @@ def send_cpu_continue(send_to_who, continue_or_not=True):
         pass
 
 def receive_data_continuously():
-    print("Receiving data continuously...\n")
-    while True:
-        # Receive and print data continuously
+    print("Receiving data continuously... Press \033[1;32mc\033[0m to exit", flush=True)
+    
+    # Create a thread for checking keyboard input
+    def check_keyboard():
+        while True:
+            if sys.stdin.read(1) == '\x63':  # 'c' key
+                return
+    
+    keyboard_thread = threading.Thread(target=check_keyboard)
+    keyboard_thread.daemon = True
+    keyboard_thread.start()
+    
+    while keyboard_thread.is_alive():
         node.receive()
-        if node.rx_flag:  # Check if data has been received
-            # Get the current date and time
+        if node.rx_flag:
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            # Print received data with the date and time
             print(f"{current_time} - Received: {node.rx_data}")
-            node.rx_flag = False  # Reset the flag after processing
-        time.sleep(0.1)  # Short delay to avoid overloading the CPU
+            node.rx_flag = False
+        time.sleep(0.1)
+    
+    print('\x1b[1A', end='\r')
+    print(" "*100)
+    print('\x1b[1A', end='\r')
 
 try:
     time.sleep(1)
@@ -120,7 +131,7 @@ try:
                         print('\x1b[1A', end='\r')
                         break
 
-            # detect key r to receive data
+            # detect key r
             elif c == '\x72':
                 receive_data_continuously()
 
