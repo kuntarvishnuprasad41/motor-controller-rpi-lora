@@ -127,6 +127,8 @@ class sx126x:
 
             print("receive message from address %d node "%((r_buff[0]<<8)+r_buff[1]))
             print("message is "+str(r_buff[2:-1]))
+            current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            print(f"[{current_time}] Received:")
             # print the rssi
             if self.rssi:
                 self.get_channel_rssi()                
