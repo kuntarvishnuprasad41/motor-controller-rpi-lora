@@ -111,6 +111,10 @@ try:
             elif c == '\x72':
                 print("Receiving data...")
                 while True:
+                    if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+                        c = sys.stdin.read(1)
+                        if c == '\x1b':  # Exit receiving on Esc
+                            break
                     # Receive and print data continuously
                     node.receive()
                     if node.rx_flag:  # Check if data has been received
