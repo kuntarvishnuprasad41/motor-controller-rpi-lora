@@ -22,7 +22,7 @@ def get_cpu_temp():
 # Initialize Device 1 (Address 1)
 node1 = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=1, power=22, rssi=False)
 
-# Send CPU temperature to Device 2 (Address 30)
+# Function to send CPU temperature to Device 2 (Address 30)
 def send_cpu_to_device_30():
     node1.addr_temp = node1.addr
     node1.set(node1.freq, 30, node1.power, node1.rssi)
@@ -30,40 +30,40 @@ def send_cpu_to_device_30():
     time.sleep(0.2)
     node1.set(node1.freq, node1.addr_temp, node1.power, node1.rssi)
 
-# Function to continuously receive data from other nodes
-def receive_data():
-    while True:
-        data = node1.receive()  # Assuming node1.receive() will return the received data
-        
-        if data is not None:  # Check if data has been received
-            print(f"Received from node 1: {data}")
-            if data.startswith(b"CPU Temperature:"):
-                print(f"Temperature Data: {data.decode()}")
+# Function to receive data from Device 2 (Address 30)
+def receive_data_from_device_30():
+    node1.addr_temp = node1.addr
+    node1.set(node1.freq, 30, node1.power, node1.rssi)
+    received_data = node1.receive(timeout=2)  # wait for 2 seconds to receive data
+    if received_data:
+        print(f"Received from device 30: {received_data}")
+    time.sleep(0.2)
+    node1.set(node1.freq, node1.addr_temp, node1.power, node1.rssi)
 
-        time.sleep(0.1)
+
+# Function to handle key press and send/receive data accordingly
+def handle_key_press(c):
+    if c == '\x72':  # Press 'r' to send and receive data
+        send_cpu_to_device_30()
+        receive_data_from_device_30()
 
 
 # Key press handling and program control
 try:
     time.sleep(1)
     print("Press \033[1;32mEsc\033[0m to exit")
-    print("Press \033[1;32ms\033[0m to send CPU temperature to node 30")
-    print("Press \033[1;32mr\033[0m to receive data")
+    print("Press \033[1;32mr\033[0m to send and receive CPU temperature to/from node 30")
 
     while True:
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
             c = sys.stdin.read(1)
 
-            # detect key Esc
+            # Detect key Esc
             if c == '\x1b':
                 break
-            # detect key s
-            elif c == '\x73':
-                send_cpu_to_device_30()
-            # detect key r to receive data
+            # Detect key r
             elif c == '\x72':
-                print("Receiving data...")
-                receive_data()
+                handle_key_press(c)
 
         sys.stdout.flush()
 
