@@ -13,13 +13,16 @@ from threading import Timer
 old_settings = termios.tcgetattr(sys.stdin)
 tty.setcbreak(sys.stdin.fileno())
 
+
 def get_cpu_temp():
     tempFile = open("/sys/class/thermal/thermal_zone0/temp")
     cpu_temp = tempFile.read()
     tempFile.close()
     return float(cpu_temp) / 1000
 
+
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=0, power=22, rssi=False)
+
 
 def send_deal():
     get_rec = ""
@@ -109,22 +112,14 @@ try:
 
             # detect key r to receive data
             elif c == '\x72':
-                print("Receiving data... Press 'c' to stop.")
-                global receiving
-                receiving = True
-                while receiving:
-                    # Check if 'c' is pressed to stop receiving
-                    if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-                        if sys.stdin.read(1) == '\x63':
-                            receiving = False
-                            break
-                    # Receive data
+                print("Receiving data...")
+                while True:
+                    # Receive and print data
                     node.receive()
-                    if node.rx_flag:
+                    if node.rx_flag:  # Check if data has been received
                         print(f"Received: {node.rx_data}")
-                        node.rx_flag = False
+                        node.rx_flag = False  # Reset the flag after processing
                     time.sleep(0.1)
-                print("Stopped receiving.")
 
         sys.stdout.flush()
 
