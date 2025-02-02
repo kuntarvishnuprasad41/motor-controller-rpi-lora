@@ -74,28 +74,35 @@ def send_cpu_continue(send_to_who, continue_or_not=True):
 
 def receive_data_continuously():
     print("Receiving data continuously... Press \033[1;32mc\033[0m to exit", flush=True)
+    receiving = True
     
-    # Create a thread for checking keyboard input
     def check_keyboard():
+        nonlocal receiving
         while True:
             if sys.stdin.read(1) == '\x63':  # 'c' key
-                return
+                receiving = False
+                break
     
+    # Start keyboard monitoring thread
     keyboard_thread = threading.Thread(target=check_keyboard)
     keyboard_thread.daemon = True
     keyboard_thread.start()
     
-    while keyboard_thread.is_alive():
+    # Main receiving loop
+    while receiving:
         node.receive()
         if node.rx_flag:
             current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            print(f"{current_time} - Received: {node.rx_data}")
+            if hasattr(node, 'addr_temp') and node.addr_temp:
+                print(f"{current_time} - Received from address {node.addr_temp}: {node.rx_data}")
+            else:
+                print(f"{current_time} - Received: {node.rx_data}")
+            sys.stdout.flush()  # Ensure immediate printing
             node.rx_flag = False
-        time.sleep(0.1)
+        time.sleep(0.1)  # Small delay to prevent CPU overload
     
-    print('\x1b[1A', end='\r')
-    print(" "*100)
-    print('\x1b[1A', end='\r')
+    # Clean up display when exiting
+    print("Exiting receive mode...")
 
 try:
     time.sleep(1)
