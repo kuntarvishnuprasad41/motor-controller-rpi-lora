@@ -155,9 +155,9 @@ def receive_data_continuously(node, temp_sender):
                 received_data = node.receive()
                 if received_data and received_data != "":
                     print(f"Received: {received_data}")
-            except IndexError:
+            #except IndexError:
                 # Handle index error from sx126x library
-                pass
+             #   pass
             except Exception as e:
                 print(f"Receive error: {e}")
             
