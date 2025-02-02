@@ -109,14 +109,22 @@ try:
 
             # detect key r to receive data
             elif c == '\x72':
-                print("Receiving data...")
-                while True:
-                    # Receive and print data continuously
+                print("Receiving data... Press 'c' to stop.")
+                global receiving
+                receiving = True
+                while receiving:
+                    # Check if 'c' is pressed to stop receiving
+                    if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+                        if sys.stdin.read(1) == '\x63':
+                            receiving = False
+                            break
+                    # Receive data
                     node.receive()
-                    if node.rx_flag:  # Check if data has been received
+                    if node.rx_flag:
                         print(f"Received: {node.rx_data}")
-                        node.rx_flag = False  # Reset the flag after processing
-                    time.sleep(0.1)  # Short delay to avoid overloading the CPU
+                        node.rx_flag = False
+                    time.sleep(0.1)
+                print("Stopped receiving.")
 
         sys.stdout.flush()
 
