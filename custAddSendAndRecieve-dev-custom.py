@@ -13,7 +13,7 @@ from threading import Timer
 # Device setup
 def get_device_address():
     while True:
-        address = input("Enter the device address (1-255): ")
+        address = input("Enter the current device address (1-255): ")
         try:
             address = int(address)
             if 1 <= address <= 255:
@@ -60,17 +60,20 @@ def receive_data():
 
 # Handle user input for sending/receiving
 def handle_keyboard_input():
-    print(f"Current device address: {current_device_address}")
-    destination_address = input("Enter the destination device address (0-255): ")
-    try:
-        destination_address = int(destination_address)
-        if destination_address < 0 or destination_address > 255:
-            print("Invalid address, must be between 0 and 255.")
-            return
-    except ValueError:
-        print("Invalid input. Please enter a valid address.")
-        return
+    # Ask for destination device address
+    while True:
+        destination_address = input("Enter the destination device address (1-255): ")
+        try:
+            destination_address = int(destination_address)
+            if 1 <= destination_address <= 255:
+                break
+            else:
+                print("Address must be between 1 and 255.")
+        except ValueError:
+            print("Invalid input. Please enter a valid address between 1 and 255.")
 
+    print(f"Sending data to device with address {destination_address}...")
+    
     # Start the continuous sending and receiving threads
     send_thread = threading.Thread(target=send_temperature_data, args=(destination_address,))
     receive_thread = threading.Thread(target=receive_data)
