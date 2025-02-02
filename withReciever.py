@@ -31,7 +31,8 @@ def receive_data_continuously(node):
         received_data = node.receive()
         
         if received_data:
-            print(f"Received: {received_data}")
+            current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            print(f"[{current_time}] Received: {received_data}")
         
         time.sleep(0.1)
 
