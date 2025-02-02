@@ -108,23 +108,15 @@ try:
                         break
 
             # detect key r to receive data
-            elif c == '\x72':  # For receiving data
+            elif c == '\x72':
                 print("Receiving data...")
-                receiving = True  # Set a flag to indicate that receiving should continue
-                while receiving:
+                while True:
+                    # Receive and print data continuously
                     node.receive()
-                    if node.rx_flag:
+                    if node.rx_flag:  # Check if data has been received
                         print(f"Received: {node.rx_data}")
-                        node.rx_flag = False
-                    time.sleep(0.1)  # Keep checking for new data continuously
-
-                    # Add a small check for Esc or other key to stop receiving
-                    if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-                        c = sys.stdin.read(1)
-                        if c == '\x1b':  # If the user presses Esc
-                            receiving = False
-                            print("Exiting receive mode")
-
+                        node.rx_flag = False  # Reset the flag after processing
+                    time.sleep(0.1)  # Short delay to avoid overloading the CPU
 
         sys.stdout.flush()
 
