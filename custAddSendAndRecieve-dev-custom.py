@@ -8,12 +8,13 @@ import select
 import termios
 import tty
 import sx126x
+import random  # For generating random address
 from threading import Timer
 
-# Current device address
-current_device_address = 1  # Change this to 1 or 2 for each device
+# Generate a random device address (between 1 and 255, since 0 is reserved for broadcast)
+current_device_address = random.randint(1, 255)
 
-# Device setup
+# Device setup with random address
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_device_address, power=22, rssi=False)
 
 old_settings = termios.tcgetattr(sys.stdin)
@@ -76,6 +77,7 @@ def handle_keyboard_input():
 
 # Main loop to detect key presses
 def main():
+    print(f"Current device address: {current_device_address}")  # Display current address first
     print("Press Esc to exit")
     print("Press Enter to start sending/receiving data")
 
