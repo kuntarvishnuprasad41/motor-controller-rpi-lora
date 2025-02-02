@@ -101,7 +101,7 @@ try:
     print("Press r   to receive data")
 
     seconds = 2
-    send_to_who = 0
+    send_to_who = 30
 
     while True:
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
@@ -131,7 +131,7 @@ try:
             elif c == '\x72':
                 # Call the function to receive data continuously
                 receive_data_continuously()
-                send_cpu_continue(send_to_who, False)
+                send_cpu_continue(30, False)
 
 except Exception as e:
     print(f"Error occurred: {e}")
