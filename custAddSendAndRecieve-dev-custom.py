@@ -23,10 +23,13 @@ node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=0, power=22, rssi=F
 # Function to receive data continuously
 def receive_data():
     while True:
-        node.receive()
-        if node.rx_flag:
-            print(f"Received data from address {node.rx_addr}: {node.rx_data}")
-            node.rx_flag = False  # Reset the flag after processing
+        # Attempt to receive data
+        try:
+            received_data = node.receive()
+            if received_data:  # Check if data is received
+                print(f"Received data from address {node.rx_addr}: {received_data}")
+        except Exception as e:
+            print(f"Error receiving data: {e}")
         time.sleep(0.1)
 
 # Function to send data continuously
