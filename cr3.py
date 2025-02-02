@@ -5,12 +5,95 @@ import select
 import termios
 import tty
 import threading
-from threading import Timer
+from threading import Timer, Event
 
 old_settings = termios.tcgetattr(sys.stdin)
 tty.setcbreak(sys.stdin.fileno())
 
-# [Previous setup_addresses, send_deal, and get_receiver_address functions remain the same]
+class SimplexLoRa:
+    def __init__(self, node, receiver_addr):
+        self.node = node
+        self.receiver_addr = receiver_addr
+        self.running = False
+        self.thread = None
+        self.last_temp_send = 0
+        self.temp_interval = 2  # seconds
+        self.mode_switch_event = Event()
+
+    def run(self):
+        print("Started listening mode (with periodic temperature updates)")
+        print("Press Esc to exit")
+        
+        self.running = True
+        while self.running:
+            try:
+                current_time = time.time()
+                
+                # Check if it's time to send temperature
+                if current_time - self.last_temp_send >= self.temp_interval:
+                    # Switch to transmit mode
+                    self.send_temperature()
+                    self.last_temp_send = current_time
+                
+                # Switch to receive mode
+                try:
+                    received_data = self.node.receive()
+                    if received_data and received_data != "":
+                        print(f"Received: {received_data}")
+                except IndexError:
+                    # Handle the common index error
+                    pass
+                except Exception as e:
+                    print(f"Receive error: {e}")
+                
+                # Check for Esc key
+                if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
+                    c = sys.stdin.read(1)
+                    if c == '\x1b':
+                        print("Exiting...")
+                        self.running = False
+                        break
+                
+                time.sleep(0.1)  # Small delay to prevent CPU overload
+
+            except Exception as e:
+                print(f"Operation error: {e}")
+                time.sleep(0.1)
+
+    def send_temperature(self):
+        try:
+            # Store current address
+            current_addr = self.node.addr
+            
+            # Switch to transmit mode and send temperature
+            self.node.set(self.node.freq, self.receiver_addr, self.node.power, self.node.rssi)
+            temp = get_cpu_temp()
+            self.node.send(f"CPU Temperature: {temp:.1f} C")
+            
+            # Switch back to receive mode
+            time.sleep(0.2)
+            self.node.set(self.node.freq, current_addr, self.node.power, self.node.rssi)
+        except Exception as e:
+            print(f"Error sending temperature: {e}")
+
+    def start(self):
+        self.thread = threading.Thread(target=self.run)
+        self.thread.daemon = True
+        self.thread.start()
+
+    def stop(self):
+        self.running = False
+        if self.thread:
+            self.thread.join(timeout=1)
+
+def get_cpu_temp():
+    try:
+        with open("/sys/class/thermal/thermal_zone0/temp") as tempFile:
+            cpu_temp = float(tempFile.read()) / 1000
+        return cpu_temp
+    except Exception as e:
+        print(f"Error reading CPU temperature: {e}")
+        return 0.0
 
 def setup_addresses():
     print("\nSetup Device Addresses")
@@ -57,7 +140,7 @@ def get_receiver_address():
         except ValueError:
             print("\nPlease enter a valid number")
 
-def send_deal(node):
+def send_message(node):
     get_rec = ""
     print("")
     print("Input format: <receiver_address>,<message>")
@@ -89,100 +172,8 @@ def send_deal(node):
         time.sleep(0.2)
         node.set(node.freq, node.addr_temp, node.power, node.rssi)
 
-        print('\x1b[2A', end='\r')
-        print(" "*100)
-        print(" "*100)
-        print(" "*100)
-        print('\x1b[3A', end='\r')
     except ValueError:
         print("\nInvalid address format. Please use numbers for the address.")
-
-
-class TemperatureSender:
-    def __init__(self, node, receiver_addr, interval=2):
-        self.node = node
-        self.receiver_addr = receiver_addr
-        self.interval = interval
-        self.running = False
-        self.thread = None
-
-    def send_temperature(self):
-        while self.running:
-            try:
-                # Store current node address
-                current_addr = self.node.addr
-                
-                # Set to receiver address and send
-                self.node.set(self.node.freq, self.receiver_addr, self.node.power, self.node.rssi)
-                temp = get_cpu_temp()
-                self.node.send(f"CPU Temperature: {temp:.1f} C")
-                
-                # Reset to original address
-                time.sleep(0.2)
-                self.node.set(self.node.freq, current_addr, self.node.power, self.node.rssi)
-                
-                time.sleep(self.interval)
-            except Exception as e:
-                print(f"Error in temperature sender: {e}")
-                time.sleep(self.interval)  # Wait before retrying
-
-    def start(self):
-        self.running = True
-        self.thread = threading.Thread(target=self.send_temperature)
-        self.thread.daemon = True
-        self.thread.start()
-
-    def stop(self):
-        self.running = False
-        if self.thread:
-            self.thread.join(timeout=1)  # Wait up to 1 second for thread to finish
-
-def receive_data_continuously(node, temp_sender):
-    print("Receiving data...")
-    print("Press Esc to exit receive mode")
-    
-    # Store original address
-    original_addr = node.addr
-    
-    while True:
-        try:
-            # Make sure we're on the correct receiving address
-            if node.addr != original_addr:
-                node.set(node.freq, original_addr, node.power, node.rssi)
-            
-            # Try to receive data
-            try:
-                received_data = node.receive()
-                if received_data and received_data != "":
-                    print(f"Received: {received_data}")
-            #except IndexError:
-                # Handle index error from sx126x library
-             #   pass
-            except Exception as e:
-                print(f"Receive error: {e}")
-            
-            time.sleep(0.1)
-
-            # Check for Esc key
-            if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-                c = sys.stdin.read(1)
-                if c == '\x1b':
-                    print("Exiting receive mode.")
-                    temp_sender.stop()
-                    break
-
-        except Exception as e:
-            print(f"General error in receive mode: {e}")
-            time.sleep(0.1)  # Add delay before retrying
-
-def get_cpu_temp():
-    try:
-        with open("/sys/class/thermal/thermal_zone0/temp") as tempFile:
-            cpu_temp = float(tempFile.read()) / 1000
-        return cpu_temp
-    except Exception as e:
-        print(f"Error reading CPU temperature: {e}")
-        return 0.0
 
 try:
     node = setup_addresses()
@@ -191,8 +182,7 @@ try:
     print("\nCommands:")
     print("Press Esc to exit")
     print("Press i   to send message")
-    print("Press s   to send cpu temperature every 2 seconds")
-    print("Press r   to receive data (and send temperature updates)")
+    print("Press r   to start receive mode with temperature updates")
 
     while True:
         if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
@@ -201,26 +191,11 @@ try:
             if c == '\x1b':  # Esc
                 break
             elif c == '\x69':  # i
-                send_deal(node)
-            elif c == '\x73':  # s
-                receiver_addr = get_receiver_address()
-                temp_sender = TemperatureSender(node, receiver_addr)
-                print("Press c to exit the send task")
-                temp_sender.start()
-                
-                while True:
-                    if sys.stdin.read(1) == '\x63':  # c
-                        temp_sender.stop()
-                        print('\x1b[1A', end='\r')
-                        print(" "*100)
-                        print('\x1b[1A', end='\r')
-                        break
-            
+                send_message(node)
             elif c == '\x72':  # r
                 receiver_addr = get_receiver_address()
-                temp_sender = TemperatureSender(node, receiver_addr)
-                temp_sender.start()
-                receive_data_continuously(node, temp_sender)
+                simplex_lora = SimplexLoRa(node, receiver_addr)
+                simplex_lora.run()  # This will run until Esc is pressed
 
 except Exception as e:
     print(f"Error occurred: {e}")
