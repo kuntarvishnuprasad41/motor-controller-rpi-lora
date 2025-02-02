@@ -1,15 +1,12 @@
-#!/usr/bin/python
-# -*- coding: UTF-8 -*-
-
+import os
 import sys
-import sx126x
-import threading
 import time
-import select
 import termios
 import tty
 from threading import Timer
+import sx126x
 
+# Original terminal settings
 old_settings = termios.tcgetattr(sys.stdin)
 tty.setcbreak(sys.stdin.fileno())
 
@@ -49,7 +46,6 @@ def send_deal():
     print(" "*100)
     print('\x1b[3A', end='\r')
 
-
 def send_cpu_continue(send_to_who, continue_or_not=True):
     if continue_or_not:
         global timer_task
@@ -72,7 +68,6 @@ def send_cpu_continue(send_to_who, continue_or_not=True):
         timer_task.cancel()
         pass
 
-
 try:
     time.sleep(1)
     print("Press \033[1;32mEsc\033[0m to exit")
@@ -84,47 +79,51 @@ try:
     seconds = 2
 
     while True:
-        if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-            c = sys.stdin.read(1)
+        c = sys.stdin.read(1)
 
-            # detect key Esc
-            if c == '\x1b':
-                break
-            # detect key i
-            elif c == '\x69':
-                send_deal()
-            # detect key s
-            elif c == '\x73':
-                print("Press \033[1;32mc\033[0m   to exit the send task")
-                timer_task = Timer(seconds, send_cpu_continue, (send_to_who,))
-                timer_task.start()
-                
-                while True:
-                    if sys.stdin.read(1) == '\x63':
-                        timer_task.cancel()
-                        print('\x1b[1A', end='\r')
-                        print(" "*100)
-                        print('\x1b[1A', end='\r')
-                        break
+        # detect key Esc
+        if c == '\x1b':
+            break
+        # detect key i
+        elif c == '\x69':
+            send_deal()
+        # detect key s
+        elif c == '\x73':
+            print("Press \033[1;32mc\033[0m   to exit the send task")
+            timer_task = Timer(seconds, send_cpu_continue, (send_to_who,))
+            timer_task.start()
 
-            # detect key r to receive data
-            elif c == '\x72':
-                print("Receiving data...")
-                while True:
-                    if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-                        c = sys.stdin.read(1)
-                        if c == '\x1b':  # Exit receiving on Esc
-                            break
-                    # Receive and print data continuously
-                    node.receive()
-                    if node.rx_flag:  # Check if data has been received
-                        print(f"Received: {node.rx_data}")
-                        node.rx_flag = False  # Reset the flag after processing
-                    time.sleep(0.1)  # Short delay to avoid overloading the CPU
+            while True:
+                if sys.stdin.read(1) == '\x63':
+                    timer_task.cancel()
+                    print('\x1b[1A', end='\r')
+                    print(" "*100)
+                    print('\x1b[1A', end='\r')
+                    break
+
+        # detect key r to receive data
+        elif c == '\x72':
+            print("Receiving data...")
+            while True:
+                # Receive data continuously
+                node.receive()
+                if node.rx_flag:  # Check if data has been received
+                    print(f"Received: {node.rx_data}")
+                    node.rx_flag = False  # Reset the flag after processing
+                # Allow the user to exit receiving mode with Esc key
+                if sys.stdin.read(1) == '\x1b':  # Break if Esc is pressed
+                    print("Exiting receiving mode...")
+                    break
+                time.sleep(0.1)  # Short delay to avoid overloading the CPU
 
         sys.stdout.flush()
 
-except:
+except KeyboardInterrupt:
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+    print("Exiting program...")
+except Exception as e:
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+    print(f"An error occurred: {e}")
+    sys.exit(1)
 
 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
