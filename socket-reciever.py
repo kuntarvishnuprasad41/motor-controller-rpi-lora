@@ -29,11 +29,14 @@ async def lora_receiver():
                 # Send to all connected WebSocket clients
                 for websocket in connected_clients.copy():
                     try:
-                        print(f"LoRa Received: -----------|||||||||||||\-")
+                        print(f"LoRa Received: -----------|||||||||||||\\-")
                         await websocket.send(message)
                         print(f"LoRa Received: ------------")
+                    except websockets.exceptions.ConnectionClosed as e:
+                        print(f"WebSocket connection closed: {e}")
+                        connected_clients.remove(websocket)
                     except Exception as e:
-                        print(f"Client error: {e}")
+                        print(f"Unexpected error sending message: {e}")
                         connected_clients.remove(websocket)
         except Exception as e:
             print(f"LoRa Error: {e}")
@@ -47,14 +50,12 @@ async def websocket_handler(websocket, path=None):  # <-- KEY FIX: ADD 'path' PA
     finally:
         connected_clients.remove(websocket)
 
-
 async def main():
     # Start the LoRa receiver task
     asyncio.create_task(lora_receiver())
     
     # Start WebSocket server
     server = await websockets.serve(websocket_handler, "0.0.0.0", 8765)
-
     print("WebSocket server running on ws://0.0.0.0:8765")
     
     await server.wait_closed()
