@@ -19,11 +19,7 @@ node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=0, power=22, rssi=F
 
 
 
-def receive_data_continuously(node):
-    print("Receiving data...")
-    print("Press Esc to exit receive mode")
-
-
+ 
 try:
     while True:
         received_data = node.receive()
