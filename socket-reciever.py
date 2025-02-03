@@ -29,6 +29,7 @@ async def lora_receiver():
                 # Send to all connected WebSocket clients
                 for websocket in connected_clients.copy():
                     try:
+                        print(f"LoRa Received: -----------|||||||||||||\-")
                         await websocket.send(message)
                         print(f"LoRa Received: ------------")
                     except Exception as e:
