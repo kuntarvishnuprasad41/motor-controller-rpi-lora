@@ -25,6 +25,8 @@ async def lora_receiver():
                 current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 message = f"[{current_time}] {data}"
                 print(f"LoRa Received: {message}")
+
+                await websocket.send(message) 
                 
                 # Send to all connected WebSocket clients
                 for websocket in connected_clients.copy():
