@@ -4,7 +4,6 @@
 import sys
 import sx126x
 import time
-import select
 import termios
 import tty
 import asyncio
@@ -17,7 +16,7 @@ tty.setcbreak(sys.stdin.fileno())
 # Initialize LoRa module
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=0, power=22, rssi=False)
 
-async def send_data(websocket, path):
+async def send_data(websocket, path=None):
     try:
         while True:
             received_data = node.receive()
@@ -32,6 +31,8 @@ async def send_data(websocket, path):
 
             await asyncio.sleep(0.1)  # Prevent CPU overuse
 
+    except websockets.exceptions.ConnectionClosed:
+        print("WebSocket connection closed")
     except Exception as e:
         print(f"Error: {e}")
 
