@@ -35,8 +35,10 @@ async def send_data(websocket, path):
     except Exception as e:
         print(f"Error: {e}")
 
-# Start WebSocket server
-start_server = websockets.serve(send_data, "0.0.0.0", 8765)
+async def main():
+    async with websockets.serve(send_data, "0.0.0.0", 8765):
+        print("WebSocket server started on ws://0.0.0.0:8765")
+        await asyncio.Future()  # Keep running indefinitely
 
-asyncio.get_event_loop().run_until_complete(start_server)
-asyncio.get_event_loop().run_forever()
+if __name__ == "__main__":
+    asyncio.run(main())  # Ensures the event loop is properly started
