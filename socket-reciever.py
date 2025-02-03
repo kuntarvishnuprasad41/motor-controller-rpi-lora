@@ -36,9 +36,13 @@ async def send_data(websocket, path):
         print(f"Error: {e}")
 
 async def main():
-    async with websockets.serve(send_data, "0.0.0.0", 8765):
-        print("✅ WebSocket server started on ws://0.0.0.0:8765")
-        await asyncio.Future()  # Keeps the server running indefinitely
+    # Create WebSocket server
+    server = await websockets.serve(send_data, "0.0.0.0", 8765)
+    print("WebSocket server started on ws://0.0.0.0:8765")
+    
+    # Keep the server running
+    await server.wait_closed()
 
 if __name__ == "__main__":
-    asyncio.run(main())  # ✅ Ensures a clean event loop is started
+    # Use asyncio.run() to properly set up and manage the event loop
+    asyncio.run(main())
