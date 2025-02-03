@@ -37,7 +37,7 @@ async def lora_receiver():
             print(f"LoRa Error: {e}")
             await asyncio.sleep(1)  # Prevent tight loop on errors
 
-async def websocket_handler(websocket, path):
+async def websocket_handler(websocket, path):  # <- `path` is now included
     """Handle new WebSocket connections and maintain client list."""
     connected_clients.add(websocket)
     try:
