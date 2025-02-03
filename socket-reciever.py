@@ -29,7 +29,7 @@ async def send_data(websocket, path=None):
                 # Send data to WebSocket client
                 await websocket.send(message)
 
-            await asyncio.sleep(0.1)  # Prevent CPU overuse
+            await asyncio.sleep(1.1)  # Prevent CPU overuse
 
     except websockets.exceptions.ConnectionClosed:
         print("WebSocket connection closed")

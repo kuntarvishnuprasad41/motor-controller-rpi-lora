@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>LoRa Receiver</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 20px;
+            }
+
+            #status {
+                font-weight: bold;
+                color: green;
+            }
+
+            #messages {
+                margin-top: 20px;
+                padding: 10px;
+                border: 1px solid #ccc;
+                height: 300px;
+                overflow-y: auto;
+                text-align: left;
+            }
+        </style>
+    </head>
+
+    <body>
+
+        <h2>LoRa Data Receiver</h2>
+        <p>Status: <span id="status">Connecting...</span></p>
+
+        <div id="messages">Waiting for data...</div>
+
+        <script>
+            const ws = new WebSocket("ws://192.168.100.16:8765"); // Replace with your Raspberry Pi's IP
+
+            ws.onopen = function () {
+                document.getElementById("status").innerText = "Connected";
+                document.getElementById("status").style.color = "green";
+                console.log("Connected to LoRa WebSocket Server");
+            };
+
+            ws.onmessage = function (event) {
+                console.log("Received:", event.data);
+
+                // Append received data to messages div
+                const messagesDiv = document.getElementById("messages");
+                const newMessage = document.createElement("p");
+                newMessage.textContent = event.data;
+                messagesDiv.appendChild(newMessage);
+
+                // Auto-scroll to the latest message
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            };
+
+            ws.onerror = function (error) {
+                document.getElementById("status").innerText = "Error";
+                document.getElementById("status").style.color = "red";
+                console.error("WebSocket Error:", error);
+            };
+
+            ws.onclose = function () {
+                document.getElementById("status").innerText = "Disconnected";
+                document.getElementById("status").style.color = "red";
+                console.log("WebSocket closed");
+            };
+        </script>
+
+    </body>
+
+</html>
