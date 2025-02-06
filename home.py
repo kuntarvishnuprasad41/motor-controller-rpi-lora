@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 import sys
-import sx126x
+import sx126x  # Your LoRa library
 import time
 import select
 import termios
@@ -10,9 +10,9 @@ import tty
 from threading import Timer
 
 # --- Configuration (Home Unit Specific) ---
-NODE_ADDRESS = 30      # Address of *this* node (Home Unit)
-MOTOR_NODE_ADDRESS = 0  # Address of the Motor unit
-FREQUENCY = 433         # LoRa frequency (MHz)
+NODE_ADDRESS = 30       # Address of *this* node (Home Unit)
+MOTOR_NODE_ADDRESS = 0   # Address of the Motor unit
+FREQUENCY = 433          # LoRa frequency (MHz)
 POWER = 22              # Transmit power (dBm)
 RSSI_ENABLED = False     # Whether to print RSSI
 RESPONSE_TIMEOUT = 5.0       # Seconds to wait for a response
@@ -75,6 +75,7 @@ def parse_and_display_status(payload):
         print(f"Received Status: Motor {last_received_status}, Total Run Time: {last_received_run_time} seconds")
     else:
         print(f"Received Status: Motor {last_received_status}, Total Run Time: {last_received_run_time} seconds, Error Code: {error_code}")
+
 
 
 def send_command(command_type, data=None):

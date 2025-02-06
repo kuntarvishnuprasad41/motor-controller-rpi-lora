@@ -160,34 +160,44 @@ class sx126x:
         """Receives data with improved address handling and serial reading."""
         self.set_mode(self.MODE_RX)
         start_time = time.time()
-        received_data = bytearray() # Use bytearray
+        received_data = bytearray()
 
         while time.time() - start_time < timeout:
             if self.ser.inWaiting() > 0:
-                received_data += self.ser.read(self.ser.inWaiting())  # Read all available
-                print(f"Received raw bytes: {received_data.hex()}") # Debug
-                # Check if we have enough bytes for the address
+                received_data += self.ser.read(self.ser.inWaiting())
+                print(f"Received raw bytes: {received_data.hex()}")
+
+                # We need at least 2 bytes for the *destination* address
                 if len(received_data) >= 2:
-                    sender_address = (received_data[0] << 8) | received_data[1]
-                    print(f"Received message from address {sender_address}")
+                    destination_address = (received_data[0] << 8) | received_data[1]
+                    print(f"Received message intended for address {destination_address}")
 
                     # Check if this message is for us (or broadcast)
-                    if sender_address == self.addr or sender_address == 65535:
-                        payload = received_data[2:]  # Data starts after address
+                    if destination_address == self.addr or destination_address == 65535:
+                        # Extract the sender's address (we'll assume it's *after* the destination)
+                        if len(received_data) >= 4:
+                            sender_address = (received_data[2] << 8) | received_data[3]
+                            print(f"Sender address: {sender_address}")
+                            payload = received_data[4:]  # Payload starts after destination and sender
 
-                        if self.rssi and len(payload) > 0:
-                            rssi_value = -(256 - payload[-1])
-                            print(f"RSSI: {rssi_value} dBm")
-                            payload = payload[:-1]  # Remove RSSI byte
+                            if self.rssi and len(payload) > 0:
+                                rssi_value = -(256 - payload[-1])
+                                print(f"RSSI: {rssi_value} dBm")
+                                payload = payload[:-1]
 
-                        print(f"Message: {payload.decode('utf-8', 'ignore')}")
-                        return payload
-                    else: # Message is not for us
-                        received_data = bytearray() #Clear buffer
-                        return None # Return None if not for us.
+                            # print(f"Message: {payload.decode('utf-8', 'ignore')}") # Don't decode here!
+                            return payload  # Return the raw payload
+                        else:
+                            print("Incomplete message (no sender address)")
+                            received_data = bytearray() # Clear and reset
+                            return None
+                    else:
+                        print(f"Message not for us (destination: {destination_address}, our address: {self.addr})")
+                        received_data = bytearray()  # Clear the buffer
+                        return None # Message is not for us
+            time.sleep(0.01)
 
-            time.sleep(0.01)  # Shorter sleep for responsiveness
-
-        return None  # Timeout
+        return None
+    
     def cancel_receive(self):
         self.set_mode(self.MODE_STDBY)
