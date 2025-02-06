@@ -67,7 +67,7 @@ def setup_gpio():
     GPIO.setup(RELAY_PIN_ON, GPIO.OUT)
     GPIO.setup(RELAY_PIN_OFF, GPIO.OUT)
     GPIO.setup(POWER_LOSS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)  # Assuming pull-up
-    GPIO.add_event_detect(POWER_LOSS_PIN, GPIO.FALLING, callback=power_loss_callback, bouncetime=200)
+    # GPIO.add_event_detect(POWER_LOSS_PIN, GPIO.FALLING, callback=power_loss_callback, bouncetime=200)
 
 def turn_on_motor():
     GPIO.output(RELAY_PIN_ON, GPIO.HIGH)
