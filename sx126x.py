@@ -164,7 +164,7 @@ class sx126x:
         # Wait for and check the response
         response = self.read_payload(3)
         if response and response[0] == 0xC1:
-            # print("Configuration successful") # Debug
+            print("Configuration successful") # Debug
             pass
         else:
             print(f"Configuration failed. Response: {response.hex() if response else 'No response'}")
