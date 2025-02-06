@@ -10,14 +10,14 @@ from threading import Timer
 
 # --- Configuration (Motor Unit Specific) ---
 NODE_ADDRESS = 0       #  Address of *this* node (Motor Unit)
-HOME_NODE_ADDRESS = 98   # Address of the Home Unit
+HOME_NODE_ADDRESS = 30   # Address of the Home Unit
 FREQUENCY = 433         # LoRa frequency
 POWER = 22             # Transmit power (dBm)
 RSSI_ENABLED = False    # Whether to print RSSI
 STATUS_UPDATE_INTERVAL = 300.0  # 5 minutes (300 seconds)
 RELAY_PIN_ON = 23 #  BCM pin connectoted to ON Relay
 RELAY_PIN_OFF = 24 #  BCM pin connectoted to OFF Relay
-#POWER_LOSS_PIN = 25 #  BCM pin to check power loss  <-- COMMENTED OUT
+POWER_LOSS_PIN = 25 #  BCM pin to check power loss
 
 # --- Message Types (Constants) ---
 MSG_TYPE_ON = 0x01
@@ -63,16 +63,17 @@ def setup_gpio():
     GPIO.setwarnings(False)
     GPIO.setup(RELAY_PIN_ON, GPIO.OUT)
     GPIO.setup(RELAY_PIN_OFF, GPIO.OUT)
-    # try:  # COMMENTED OUT THE ENTIRE POWER LOSS SECTION
-    #     GPIO.setup(POWER_LOSS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-    #     GPIO.add_event_detect(POWER_LOSS_PIN, GPIO.FALLING, callback=power_loss_callback, bouncetime=200)
-    #     print("Power loss detection enabled.")
-    # except RuntimeError as e:
-    #     print(f"Error setting up power loss detection: {e}")
-    #     sys.exit(1)
-    # except Exception as e:
-    #     print(f"An unexpected error occurred during GPIO setup: {e}")
-    #     sys.exit(1)
+    try:
+        GPIO.setup(POWER_LOSS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        # Re-enable power loss detection (after initial testing)
+        GPIO.add_event_detect(POWER_LOSS_PIN, GPIO.FALLING, callback=power_loss_callback, bouncetime=200)
+        print("Power loss detection enabled.")
+    except RuntimeError as e:
+        print(f"Error setting up power loss detection: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"An unexpected error occurred during GPIO setup: {e}")
+        sys.exit(1)
 
 def turn_on_motor():
     GPIO.output(RELAY_PIN_ON, GPIO.HIGH)
@@ -86,30 +87,30 @@ def turn_off_motor():
     GPIO.output(RELAY_PIN_OFF, GPIO.LOW)
     print("Motor OFF")
 
-# def power_loss_callback(channel):  # COMMENTED OUT
-#     global motor_unit_state
-#     print(f"Power loss detected on channel {channel}!")
-#     if motor_unit_state != "TRANSMITTING_STATUS":
-#         node.cancel_receive()
-#         motor_unit_state = "TRANSMITTING_STATUS"
-#         send_power_loss_alert()
+def power_loss_callback(channel):
+    global motor_unit_state
+    print(f"Power loss detected on channel {channel}!")
+    if motor_unit_state != "TRANSMITTING_STATUS":
+        node.cancel_receive()
+        motor_unit_state = "TRANSMITTING_STATUS"
+        send_power_loss_alert()
 
-# def send_power_loss_alert(): # COMMENTED OUT
-#     global total_run_time, motor_on_time
+def send_power_loss_alert():
+    global total_run_time, motor_on_time
 
-#     if motor_on_time > 0:
-#         current_time = int(time.time())
-#         total_run_time += current_time - motor_on_time
-#         save_value(TOTAL_RUNTIME_FILE, total_run_time)
-#         motor_on_time = 0
-#         save_value(MOTOR_ON_TIME_FILE, motor_on_time)
+    if motor_on_time > 0:
+        current_time = int(time.time())
+        total_run_time += current_time - motor_on_time
+        save_value(TOTAL_RUNTIME_FILE, total_run_time)
+        motor_on_time = 0
+        save_value(MOTOR_ON_TIME_FILE, motor_on_time)
 
-#     message = construct_status_message(ERROR_CODE_POWER_FAILURE)
-#     print(f"send_power_loss_alert: Sending message: {message.hex()}")
-#     node.set_mode(node.MODE_TX)
-#     node.send(HOME_NODE_ADDRESS, message)
-#     node.set_mode(node.MODE_RX)
-#     print(f"Sent power loss alert")
+    message = construct_status_message(ERROR_CODE_POWER_FAILURE)
+    print(f"send_power_loss_alert: Sending message: {message.hex()}")
+    node.set_mode(node.MODE_TX)
+    node.send(HOME_NODE_ADDRESS, message)  # Send to the home unit's address
+    node.set_mode(node.MODE_RX)
+    print(f"Sent power loss alert")
 
 def parse_request(message):
     if len(message) < 1:
@@ -153,6 +154,7 @@ def send_scheduled_update():
     print("send_scheduled_update called")
     if motor_unit_state == "LISTENING":
         motor_unit_state = "TRANSMITTING_STATUS"
+    # Re-schedule for 5 minutes later:
     scheduled_update_timer = Timer(STATUS_UPDATE_INTERVAL, send_scheduled_update)
     scheduled_update_timer.start()
 
@@ -170,10 +172,11 @@ def main():
     try:
         while True:
             if motor_unit_state == "LISTENING":
+                #print("State: LISTENING") # Removed extra print statements
                 node.set_mode(node.MODE_RX)
                 payload = node.receive()
                 if payload:
-                    print(f"Received payload: {payload.hex()}")
+                    print(f"Received payload: {payload.hex()}") # Keep this
                     message_type, data = parse_request(payload)
                     print(f"Parsed message_type: {message_type}, data: {data}")
 
@@ -216,20 +219,24 @@ def main():
                             motor_unit_state = "LISTENING"
 
             elif motor_unit_state == "TRANSMITTING_STATUS":
+                #print("State: TRANSMITTING_STATUS") # Removed extra print statements
                 node.set_mode(node.MODE_TX)
                 message = construct_status_message()
-                node.send(HOME_NODE_ADDRESS, message)
-                node.set_mode(node.MODE_RX)
+                node.send(HOME_NODE_ADDRESS, message)  # Send to the home unit's address
+                node.set_mode(node.MODE_RX)  # Switch back to RX mode immediately
                 motor_unit_state = "LISTENING"
 
+
             elif motor_unit_state == "TRANSMITTING_RESPONSE":
+                #print("State: TRANSMITTING_RESPONSE") # Removed extra print statements
                 node.set_mode(node.MODE_TX)
                 message = construct_status_message()
-                node.send(HOME_NODE_ADDRESS, message)
+                node.send(HOME_NODE_ADDRESS, message)  # Send to home unit's address
                 node.set_mode(node.MODE_RX)
                 motor_unit_state = "LISTENING"
 
             elif motor_unit_state == "PROCESSING_REQUEST":
+                #print("State: PROCESSING_REQUEST") # Removed extra print statements
                 pass
 
             if motor_running and motor_run_timer > 0:

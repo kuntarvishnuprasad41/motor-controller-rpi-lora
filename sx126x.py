@@ -34,27 +34,24 @@ class sx126x:
     def __init__(self, serial_num, freq=433, addr=0, power=22, rssi=False):
         self.serial_n = serial_num
         self.freq = freq
-        self.addr = addr  # This is now the *own* address of THIS module
+        self.addr = addr
         self.power = power
         self.rssi = rssi
         self.modem = None
 
-        # Initialize GPIO pins
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         GPIO.setup(self.M0, GPIO.OUT)
         GPIO.setup(self.M1, GPIO.OUT)
         self.set_mode(self.MODE_STDBY)
 
-        # Open serial port
         try:
             self.ser = serial.Serial(serial_num, 9600)
-            self.ser.flushInput()
+            self.flush() # Initial flush
         except serial.SerialException as e:
             print(f"Error opening serial port: {e}")
             raise
 
-        # Apply initial configuration
         self.set(freq, addr, power, rssi)
 
     def set_mode(self, mode):
@@ -73,7 +70,7 @@ class sx126x:
         else:
             raise ValueError("Invalid mode")
         self.modem = mode
-        time.sleep(0.01)
+        time.sleep(0.02)  # Slightly longer delay
 
     def write_payload(self, payload):
         self.ser.write(bytes(payload))
@@ -85,12 +82,11 @@ class sx126x:
         return data
 
     def set(self, freq, addr, power, rssi, air_speed=2400, net_id=0, buffer_size=240, crypt=0):
-        self.addr = addr  # Store the *own* address
-
+        self.addr = addr
         config = self.DEFAULT_CONFIG[:]
         config[3] = net_id & 0xFF
-        config[4] = (addr >> 8) & 0xFF  # High byte of *own* address
-        config[5] = addr & 0xFF       # Low byte of *own* address
+        config[4] = (addr >> 8) & 0xFF
+        config[5] = addr & 0xFF
 
         if freq >= 850:
             freq_reg = freq - 850
@@ -135,6 +131,7 @@ class sx126x:
         config[11] = crypt & 0xFF
 
         self.set_mode(self.MODE_STDBY)
+        self.flush()  # Flush before writing configuration
         self.write_payload([0xC2, 0x00, 0x09] + config[3:])
 
         response = self.read_payload(3)
@@ -142,23 +139,25 @@ class sx126x:
             print(f"Configuration failed. Response: {response.hex() if response else 'No response'}")
         self.set_mode(self.MODE_RX)
 
+
     def send(self, destination_address, data):
-        """Sends data to the specified destination address."""
         if isinstance(data, str):
             data = data.encode('utf-8')
         if not isinstance(data, bytes):
             raise TypeError("Data must be bytes or a string")
 
-        # Construct the packet: [destination address high, low] + [data]
         packet = [(destination_address >> 8) & 0xFF, destination_address & 0xFF] + list(data)
-        print(f"Sending packet: {bytes(packet).hex()}")  # Debug: Show the packet
+        print(f"Sending packet: {bytes(packet).hex()}")
         self.set_mode(self.MODE_TX)
         self.write_payload(packet)
-        time.sleep(0.1) # Added a small delay
+        time.sleep(0.1)  # Keep this delay
+        self.set_mode(self.MODE_RX) # explictly set to RX mode after sending
+        self.flush() # Flush after sending and mode switch
+
 
     def receive(self, timeout=5):
-        """Receives data with improved address handling and serial reading."""
         self.set_mode(self.MODE_RX)
+        self.flush()  # ***FLUSH BEFORE RECEIVING***
         start_time = time.time()
         received_data = bytearray()
 
@@ -167,37 +166,38 @@ class sx126x:
                 received_data += self.ser.read(self.ser.inWaiting())
                 print(f"Received raw bytes: {received_data.hex()}")
 
-                # We need at least 2 bytes for the *destination* address
                 if len(received_data) >= 2:
                     destination_address = (received_data[0] << 8) | received_data[1]
                     print(f"Received message intended for address {destination_address}")
 
-                    # Check if this message is for us (or broadcast)
                     if destination_address == self.addr or destination_address == 65535:
-                        # Extract the sender's address (we'll assume it's *after* the destination)
                         if len(received_data) >= 4:
                             sender_address = (received_data[2] << 8) | received_data[3]
                             print(f"Sender address: {sender_address}")
-                            payload = received_data[4:]  # Payload starts after destination and sender
+                            payload = received_data[4:]
 
                             if self.rssi and len(payload) > 0:
                                 rssi_value = -(256 - payload[-1])
                                 print(f"RSSI: {rssi_value} dBm")
                                 payload = payload[:-1]
 
-                            # print(f"Message: {payload.decode('utf-8', 'ignore')}") # Don't decode here!
-                            return payload  # Return the raw payload
+                            return payload
                         else:
                             print("Incomplete message (no sender address)")
-                            received_data = bytearray() # Clear and reset
+                            received_data = bytearray()
                             return None
                     else:
                         print(f"Message not for us (destination: {destination_address}, our address: {self.addr})")
-                        received_data = bytearray()  # Clear the buffer
-                        return None # Message is not for us
+                        received_data = bytearray()
+                        return None  # Message is not for us
             time.sleep(0.01)
 
         return None
-    
+
     def cancel_receive(self):
         self.set_mode(self.MODE_STDBY)
+        self.flush() # Flush after canceling
+
+    def flush(self):
+        """Flushes the serial input buffer."""
+        self.ser.reset_input_buffer()

@@ -33,7 +33,7 @@ last_received_run_time = 0    # Last received total run time
 request_timer = None          # Timer object for response timeouts
 
 # --- LoRa Setup ---
-# Initialize the LoRa module.
+# Initialize the LoRa module.  Important: freq, addr, power, rssi.
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=FREQUENCY, addr=NODE_ADDRESS, power=POWER, rssi=RSSI_ENABLED)
 
 # --- Helper Functions ---
@@ -45,7 +45,7 @@ def get_cpu_temp():
             cpu_temp = float(temp_file.read()) / 1000.0
         return cpu_temp
     except:
-        return -1.0
+        return -1.0  # Return -1 if error
 
 
 def parse_and_display_status(payload):
@@ -54,7 +54,7 @@ def parse_and_display_status(payload):
 
     print(f"parse_and_display_status: Raw payload: {payload.hex()}")  # CRITICAL DEBUG
 
-    if len(payload) < 5:  # Check for minimum length
+    if len(payload) < 5:  # Check for minimum length (type, status, runtime MSB, runtime LSB, error)
         print("Received invalid status message (too short).")
         return
 
@@ -66,7 +66,7 @@ def parse_and_display_status(payload):
         print("Received unexpected message type:", message_type)
         return
 
-    last_received_run_time = (run_time_msb << 8) | run_time_lsb
+    last_received_run_time = (run_time_msb << 8) | run_time_lsb  # Combine MSB and LSB
     last_received_status = "ON" if motor_status == 0x01 else "OFF"
 
     if error_code == ERROR_CODE_POWER_FAILURE:
@@ -77,14 +77,16 @@ def parse_and_display_status(payload):
         print(f"Received Status: Motor {last_received_status}, Total Run Time: {last_received_run_time} seconds, Error Code: {error_code}")
 
 
+
 def send_command(command_type, data=None):
     """Sends a command to the Motor unit."""
     global home_unit_state, request_timer
 
     message = [command_type]
     if data:
-        message.extend(data)
+        message.extend(data)  # Add any data to the message (e.g., timer duration)
 
+    # Use the corrected send() method, passing the destination address
     node.send(MOTOR_NODE_ADDRESS, bytes(message))
     print(f"Sent command: {message}")
 
