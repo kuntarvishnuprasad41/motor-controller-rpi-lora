@@ -64,9 +64,9 @@ def setup_gpio():
     GPIO.setup(RELAY_PIN_ON, GPIO.OUT)
     GPIO.setup(RELAY_PIN_OFF, GPIO.OUT)
     try:
-        GPIO.setup(POWER_LOSS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+        # GPIO.setup(POWER_LOSS_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
         # Re-enable power loss detection (after initial testing)
-        GPIO.add_event_detect(POWER_LOSS_PIN, GPIO.FALLING, callback=power_loss_callback, bouncetime=200)
+        # GPIO.add_event_detect(POWER_LOSS_PIN, GPIO.FALLING, callback=power_loss_callback, bouncetime=200)
         print("Power loss detection enabled.")
     except RuntimeError as e:
         print(f"Error setting up power loss detection: {e}")
