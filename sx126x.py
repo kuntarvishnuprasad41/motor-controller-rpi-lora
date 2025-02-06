@@ -34,7 +34,7 @@ class sx126x:
     def __init__(self, serial_num, freq=433, addr=0, power=22, rssi=False):
         self.serial_n = serial_num
         self.freq = freq
-        self.addr = addr
+        self.addr = addr  # *Own* address of THIS module
         self.power = power
         self.rssi = rssi
         self.modem = None
@@ -70,7 +70,7 @@ class sx126x:
         else:
             raise ValueError("Invalid mode")
         self.modem = mode
-        time.sleep(0.02)  # Slightly longer delay
+        time.sleep(0.02)
 
     def write_payload(self, payload):
         self.ser.write(bytes(payload))
@@ -131,14 +131,13 @@ class sx126x:
         config[11] = crypt & 0xFF
 
         self.set_mode(self.MODE_STDBY)
-        self.flush()  # Flush before writing configuration
+        self.flush()
         self.write_payload([0xC2, 0x00, 0x09] + config[3:])
 
         response = self.read_payload(3)
         if not (response and response[0] == 0xC1):
             print(f"Configuration failed. Response: {response.hex() if response else 'No response'}")
         self.set_mode(self.MODE_RX)
-
 
     def send(self, destination_address, data):
         if isinstance(data, str):
@@ -150,19 +149,20 @@ class sx126x:
         print(f"Sending packet: {bytes(packet).hex()}")
         self.set_mode(self.MODE_TX)
         self.write_payload(packet)
-        time.sleep(0.1)  # Keep this delay
-        self.set_mode(self.MODE_RX) # explictly set to RX mode after sending
-        self.flush() # Flush after sending and mode switch
+        time.sleep(0.1)
+        self.set_mode(self.MODE_RX)
+        self.flush()
 
 
     def receive(self, timeout=5):
         self.set_mode(self.MODE_RX)
-        self.flush()  # ***FLUSH BEFORE RECEIVING***
+        self.flush()
         start_time = time.time()
         received_data = bytearray()
 
         while time.time() - start_time < timeout:
             if self.ser.inWaiting() > 0:
+                print(f"inWaiting: {self.ser.inWaiting()}")  # DEBUG: How many bytes?
                 received_data += self.ser.read(self.ser.inWaiting())
                 print(f"Received raw bytes: {received_data.hex()}")
 
@@ -189,15 +189,14 @@ class sx126x:
                     else:
                         print(f"Message not for us (destination: {destination_address}, our address: {self.addr})")
                         received_data = bytearray()
-                        return None  # Message is not for us
+                        return None
             time.sleep(0.01)
 
         return None
 
     def cancel_receive(self):
         self.set_mode(self.MODE_STDBY)
-        self.flush() # Flush after canceling
+        self.flush()
 
     def flush(self):
-        """Flushes the serial input buffer."""
         self.ser.reset_input_buffer()
