@@ -10,7 +10,7 @@ from threading import Timer
 
 # --- Configuration (Motor Unit Specific) ---
 NODE_ADDRESS = 0       #  Address of *this* node (Motor Unit)
-HOME_NODE_ADDRESS = 30   # Address of the Home Unit
+HOME_NODE_ADDRESS = 98   # Address of the Home Unit
 FREQUENCY = 433         # LoRa frequency
 POWER = 22             # Transmit power (dBm)
 RSSI_ENABLED = False    # Whether to print RSSI
