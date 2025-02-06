@@ -190,7 +190,7 @@ def main():
                 if payload:
                     print(f"Received payload: {payload}")  # Debug print
                     message_type, data = parse_request(payload)
-                    #print(f"Received: {payload}") # Debug
+                    print(f"Received: {payload}") # Debug
 
                     if message_type == MSG_TYPE_ON:
                         motor_unit_state = "PROCESSING_REQUEST"
