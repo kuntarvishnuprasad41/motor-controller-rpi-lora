@@ -35,7 +35,7 @@ MOTOR_ON_TIME_FILE = "motor_on_time_motor.txt"    # Unique file for motor unit
 # --- Helper Functions ---
 
 def get_cpu_temp():
-    # ... (same as before - for completeness)
+    """Gets the Raspberry Pi CPU temperature."""
     try:
         tempFile = open("/sys/class/thermal/thermal_zone0/temp")
         cpu_temp = tempFile.read()
@@ -43,7 +43,6 @@ def get_cpu_temp():
         return float(cpu_temp) / 1000
     except:
         return -1.0  # Indicate an error reading temperature
-    
 
 def load_value(filepath, default_value):
     """Loads a value from a file, returning a default if file error"""
@@ -109,7 +108,6 @@ def send_power_loss_alert():
 # --- Message Parsing Functions ---
 
 def parse_request(message):
-    # ... (same as before)
     if len(message) < 1:
         return None, None  # Invalid message
 
@@ -121,7 +119,6 @@ def parse_request(message):
     return message_type, data
 
 def construct_status_message(error_code=ERROR_CODE_NO_ERROR):
-    # ... (same as before, but uses global variables)
     global motor_running, total_run_time, motor_on_time
 
     if motor_running:
@@ -149,7 +146,7 @@ motor_run_timer = 0
 # --- LoRa Setup ---
 # Note:  The freq, addr, power, and rssi are set here.
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=FREQUENCY, addr=NODE_ADDRESS, power=POWER, rssi=RSSI_ENABLED)
-node.set_mode(sx126x.MODE_RX)
+
 
 def send_scheduled_update():
     """Sends a scheduled status update."""
@@ -174,6 +171,7 @@ def main():
     try:
         while True:
             if motor_unit_state == "LISTENING":
+                node.set_mode(sx126x.MODE_RX) # Ensure RX mode for listening
                 payload = node.receive()
                 if payload:
                     message_type, data = parse_request(payload)
@@ -218,16 +216,20 @@ def main():
                             motor_unit_state = "LISTENING"
 
             elif motor_unit_state == "TRANSMITTING_STATUS":
+                node.set_mode(sx126x.MODE_TX)  # Switch to TX mode
                 message = construct_status_message()
                 node.send(message)
                 #print(f"Sent Status: {message}") # Debug
                 motor_unit_state = "LISTENING"
 
+
             elif motor_unit_state == "TRANSMITTING_RESPONSE":
+                node.set_mode(sx126x.MODE_TX)  # Switch to TX mode
                 message = construct_status_message()
                 node.send(message)
                 #print(f"Sent Response: {message}") # Debug
                 motor_unit_state = "LISTENING"
+
 
             elif motor_unit_state == "PROCESSING_REQUEST":
                 pass  # Request processing is done when received.

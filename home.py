@@ -35,7 +35,7 @@ request_timer = None
 # --- LoRa Setup ---
 # Note: The freq, addr, power, and rssi are set *here*.
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=FREQUENCY, addr=NODE_ADDRESS, power=POWER, rssi=RSSI_ENABLED)
-#Removed, as receive is called inside the loop node.set_mode(sx126x.MODE_RX)  # Start in RX mode
+
 
 # --- Helper Functions ---
 def get_cpu_temp():
@@ -141,6 +141,7 @@ def main():
                         set_timer()
 
                 # Listen for messages from the motor unit
+                node.set_mode(sx126x.MODE_RX) # Ensure RX mode for listening
                 payload = node.receive()
                 if payload:
                     parse_and_display_status(payload)
@@ -150,6 +151,7 @@ def main():
                 pass
 
             elif home_unit_state == "WAITING_FOR_RESPONSE":
+                node.set_mode(sx126x.MODE_RX)  # Ensure in RX mode.
                 payload = node.receive()  # Wait for response
                 if payload:
                     parse_and_display_status(payload)
