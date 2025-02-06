@@ -199,6 +199,8 @@ def main():
                         motor_on_time = int(time.time())
                         save_value(MOTOR_ON_TIME_FILE, motor_on_time)
                         motor_unit_state = "TRANSMITTING_RESPONSE"
+                        print(f"Received: {payload} + motor_unit_state") # Debug
+
 
                     elif message_type == MSG_TYPE_OFF:
                         motor_unit_state = "PROCESSING_REQUEST"
