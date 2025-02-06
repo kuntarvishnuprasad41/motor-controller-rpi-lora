@@ -1,7 +1,7 @@
 import RPi.GPIO as GPIO
 import serial
 import time
-import datetime
+import datetime  # Keep this for potential future use
 
 class sx126x:
 
@@ -70,7 +70,7 @@ class sx126x:
         else:
             raise ValueError("Invalid mode")
         self.modem = mode
-        time.sleep(0.02)
+        time.sleep(0.02)  # Slightly longer delay
 
     def write_payload(self, payload):
         self.ser.write(bytes(payload))
@@ -146,11 +146,11 @@ class sx126x:
             raise TypeError("Data must be bytes or a string")
 
         packet = [(destination_address >> 8) & 0xFF, destination_address & 0xFF] + list(data)
-        print(f"Sending packet: {bytes(packet).hex()}")
+        print(f"Sending packet: {bytes(packet).hex()}")  # Keep this for debugging
         self.set_mode(self.MODE_TX)
         self.write_payload(packet)
         time.sleep(0.1)
-        self.set_mode(self.MODE_RX)
+        self.set_mode(self.MODE_RX) # explictly set to RX mode after sending
         self.flush()
 
 
@@ -162,9 +162,9 @@ class sx126x:
 
         while time.time() - start_time < timeout:
             if self.ser.inWaiting() > 0:
-                print(f"inWaiting: {self.ser.inWaiting()}")  # DEBUG: How many bytes?
+                #print(f"inWaiting: {self.ser.inWaiting()}")  # DEBUG: How many bytes? - You can uncomment if you still have problems
                 received_data += self.ser.read(self.ser.inWaiting())
-                print(f"Received raw bytes: {received_data.hex()}")
+                print(f"Received raw bytes: {received_data.hex()}") # Keep this
 
                 if len(received_data) >= 2:
                     destination_address = (received_data[0] << 8) | received_data[1]
@@ -184,11 +184,11 @@ class sx126x:
                             return payload
                         else:
                             print("Incomplete message (no sender address)")
-                            received_data = bytearray()
+                            received_data = bytearray() # Clear
                             return None
                     else:
                         print(f"Message not for us (destination: {destination_address}, our address: {self.addr})")
-                        received_data = bytearray()
+                        received_data = bytearray() # Clear
                         return None
             time.sleep(0.01)
 

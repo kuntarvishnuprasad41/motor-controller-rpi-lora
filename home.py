@@ -27,46 +27,42 @@ ERROR_CODE_NO_ERROR = 0x00
 ERROR_CODE_POWER_FAILURE = 0x01
 
 # --- State Machine Variables ---
-home_unit_state = "LISTENING"  # Current state of the home unit
-last_received_status = None   # Last received motor status
-last_received_run_time = 0    # Last received total run time
-request_timer = None          # Timer object for response timeouts
+home_unit_state = "LISTENING"
+last_received_status = None
+last_received_run_time = 0
+request_timer = None
 
 # --- LoRa Setup ---
-# Initialize the LoRa module.  Important: freq, addr, power, rssi.
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=FREQUENCY, addr=NODE_ADDRESS, power=POWER, rssi=RSSI_ENABLED)
 
 # --- Helper Functions ---
 
 def get_cpu_temp():
-    """Gets the Raspberry Pi CPU temperature (optional)."""
     try:
         with open("/sys/class/thermal/thermal_zone0/temp", "r") as temp_file:
             cpu_temp = float(temp_file.read()) / 1000.0
         return cpu_temp
     except:
-        return -1.0  # Return -1 if error
-
+        return -1.0
 
 def parse_and_display_status(payload):
-    """Parses and displays a received status message."""
     global last_received_status, last_received_run_time
 
-    print(f"parse_and_display_status: Raw payload: {payload.hex()}")  # CRITICAL DEBUG
+    print(f"parse_and_display_status: Raw payload: {payload.hex()}")
 
-    if len(payload) < 5:  # Check for minimum length (type, status, runtime MSB, runtime LSB, error)
+    if len(payload) < 5:
         print("Received invalid status message (too short).")
         return
 
     message_type, motor_status, run_time_msb, run_time_lsb, error_code = payload[:5]
 
-    print(f"Parsed: type={message_type}, status={motor_status}, msb={run_time_msb}, lsb={run_time_lsb}, error={error_code}") # DEBUG
+    print(f"Parsed: type={message_type}, status={motor_status}, msb={run_time_msb}, lsb={run_time_lsb}, error={error_code}")
 
     if message_type != MSG_TYPE_STATUS_UPDATE:
         print("Received unexpected message type:", message_type)
         return
 
-    last_received_run_time = (run_time_msb << 8) | run_time_lsb  # Combine MSB and LSB
+    last_received_run_time = (run_time_msb << 8) | run_time_lsb
     last_received_status = "ON" if motor_status == 0x01 else "OFF"
 
     if error_code == ERROR_CODE_POWER_FAILURE:
@@ -76,17 +72,13 @@ def parse_and_display_status(payload):
     else:
         print(f"Received Status: Motor {last_received_status}, Total Run Time: {last_received_run_time} seconds, Error Code: {error_code}")
 
-
-
 def send_command(command_type, data=None):
-    """Sends a command to the Motor unit."""
     global home_unit_state, request_timer
 
     message = [command_type]
     if data:
-        message.extend(data)  # Add any data to the message (e.g., timer duration)
+        message.extend(data)
 
-    # Use the corrected send() method, passing the destination address
     node.send(MOTOR_NODE_ADDRESS, bytes(message))
     print(f"Sent command: {message}")
 
@@ -94,16 +86,12 @@ def send_command(command_type, data=None):
     request_timer = Timer(RESPONSE_TIMEOUT, handle_response_timeout)
     request_timer.start()
 
-
 def handle_response_timeout():
-    """Handles the timeout if no response is received."""
     global home_unit_state
     print("Error: No response from Motor unit.")
     home_unit_state = "LISTENING"
 
-
 def set_timer():
-    """Prompts the user for a timer duration and sends the SET_TIMER command."""
     print("")
     while True:
         duration_str = input("Enter timer duration in minutes (or 'c' to cancel): ")

@@ -29,8 +29,8 @@ ERROR_CODE_NO_ERROR = 0x00
 ERROR_CODE_POWER_FAILURE = 0x01
 
 # --- File Paths (for persistent storage) ---
-TOTAL_RUNTIME_FILE = "total_runtime_motor.txt"
-MOTOR_ON_TIME_FILE = "motor_on_time_motor.txt"
+TOTAL_RUNTIME_FILE = "total_runtime_motor.txt"  # Unique file for motor unit
+MOTOR_ON_TIME_FILE = "motor_on_time_motor.txt"    # Unique file for motor unit
 
 # --- Helper Functions ---
 
@@ -89,7 +89,7 @@ def turn_off_motor():
 # def power_loss_callback(channel):  # Commented out
 #     ...
 
-# def send_power_loss_alert():  # Commented out
+# def send_power_loss_alert(): # Commented out
 #     ...
 
 def parse_request(message):
@@ -115,7 +115,7 @@ def construct_status_message(error_code=ERROR_CODE_NO_ERROR):
         motor_status = 0x00
 
     message = [MSG_TYPE_STATUS_UPDATE, motor_status, (total_run_time >> 8) & 0xFF, total_run_time & 0xFF, error_code]
-    print(f"construct_status_message: Constructed message: {bytes(message).hex()}")  # Keep this
+    print(f"construct_status_message: Constructed message: {bytes(message).hex()}")  # Keep
     return bytes(message)
 
 # --- State Machine Variables ---
@@ -131,7 +131,7 @@ node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=FREQUENCY, addr=NODE_ADDRESS,
 
 def send_scheduled_update():
     global motor_unit_state, scheduled_update_timer
-    print("send_scheduled_update called")  # Keep this
+    print("send_scheduled_update called")
     if motor_unit_state == "LISTENING":
         motor_unit_state = "TRANSMITTING_STATUS"
     scheduled_update_timer = Timer(STATUS_UPDATE_INTERVAL, send_scheduled_update)
@@ -151,13 +151,12 @@ def main():
     try:
         while True:
             if motor_unit_state == "LISTENING":
-                # print("State: LISTENING")  # Can comment out now if too verbose
                 node.set_mode(node.MODE_RX)  # Ensure RX mode
                 payload = node.receive()
                 if payload:
-                    print(f"Received payload: {payload.hex()}")  # Keep this
+                    print(f"Received payload: {payload.hex()}")
                     message_type, data = parse_request(payload)
-                    print(f"Parsed message_type: {message_type}, data: {data}") # and this
+                    print(f"Parsed message_type: {message_type}, data: {data}")
 
                     if message_type == MSG_TYPE_ON:
                         motor_unit_state = "PROCESSING_REQUEST"
@@ -198,7 +197,6 @@ def main():
                             motor_unit_state = "LISTENING"
 
             elif motor_unit_state == "TRANSMITTING_STATUS":
-                # print("State: TRANSMITTING_STATUS")  # Can comment out if too verbose
                 node.set_mode(node.MODE_TX)
                 message = construct_status_message()
                 node.send(HOME_NODE_ADDRESS, message)
@@ -206,7 +204,6 @@ def main():
                 motor_unit_state = "LISTENING"
 
             elif motor_unit_state == "TRANSMITTING_RESPONSE":
-                # print("State: TRANSMITTING_RESPONSE")  # Can comment out if too verbose
                 node.set_mode(node.MODE_TX)
                 message = construct_status_message()
                 node.send(HOME_NODE_ADDRESS, message)
@@ -214,7 +211,6 @@ def main():
                 motor_unit_state = "LISTENING"
 
             elif motor_unit_state == "PROCESSING_REQUEST":
-                # print("State: PROCESSING_REQUEST") # Can comment out
                 pass
 
             if motor_running and motor_run_timer > 0:
