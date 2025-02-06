@@ -5,50 +5,46 @@ import datetime
 
 class sx126x:
 
-    # Define operating modes (constants) -  INSIDE THE CLASS
-    MODE_STDBY = 0x01  # Standby mode
-    MODE_TX = 0x02  # Transmit mode
-    MODE_RX = 0x03  # Receive mode
-    MODE_SLEEP = 0x04 # Sleep Mode
+    # Define operating modes (constants)
+    MODE_STDBY = 0x01
+    MODE_TX = 0x02
+    MODE_RX = 0x03
+    MODE_SLEEP = 0x04
 
     # Raspberry Pi GPIO pins connected to M0 and M1
     M0 = 22
     M1 = 27
 
-    # Default configuration register values (address 0x00, length 9)
+    # Default configuration register values
     DEFAULT_CONFIG = [
-        0xC2,  # Header (C2 = settings lost on power off; C0 = retained)
-        0x00,  # MSB of address
-        0x09,  # LSB of address
-        0x00,  # Net ID (0-255)
+        0xC2,  # Header
+        0x00,  # MSB of address (Placeholder)
+        0x09,  # LSB of address (Placeholder)
+        0x00,  # Net ID
         0x00,  # High byte of own address
         0x00,  # Low byte of own address
         0x62,  # UART baud rate (9600) + Air Data Rate (2.4k)
         0x17,  # Packet size (240 bytes) + Power (22dBm) + WOR Disable
-        0x00,  # Channel (850MHz base + this value)
-        0x03,  # Options:  RSSI byte + TX en
+        0x00,  # Channel
+        0x03,  # Options: RSSI byte + TX en
         0x00,  # MSB of encryption key
         0x00   # LSB of encryption key
     ]
 
     def __init__(self, serial_num, freq=433, addr=0, power=22, rssi=False):
-        """Initializes the sx126x object."""
-
         self.serial_n = serial_num
         self.freq = freq
-        self.addr = addr
+        self.addr = addr  # This is now the *own* address of THIS module
         self.power = power
         self.rssi = rssi
-        self.send_to = addr
-        self.addr_temp = addr
-        self.modem = None # Add modem to the instance variables
+        self.modem = None
 
         # Initialize GPIO pins
         GPIO.setmode(GPIO.BCM)
         GPIO.setwarnings(False)
         GPIO.setup(self.M0, GPIO.OUT)
         GPIO.setup(self.M1, GPIO.OUT)
-        self.set_mode(self.MODE_STDBY) # Start in standby mode
+        self.set_mode(self.MODE_STDBY)
 
         # Open serial port
         try:
@@ -56,13 +52,12 @@ class sx126x:
             self.ser.flushInput()
         except serial.SerialException as e:
             print(f"Error opening serial port: {e}")
-            raise  # Re-raise the exception to halt execution
+            raise
 
         # Apply initial configuration
         self.set(freq, addr, power, rssi)
 
     def set_mode(self, mode):
-        """Sets the operating mode by controlling M0 and M1 pins."""
         if mode == self.MODE_RX:
             GPIO.output(self.M0, GPIO.LOW)
             GPIO.output(self.M1, GPIO.LOW)
@@ -77,37 +72,26 @@ class sx126x:
             GPIO.output(self.M1, GPIO.HIGH)
         else:
             raise ValueError("Invalid mode")
-        self.modem = mode # Update instance variable
-        time.sleep(0.01)  # Short delay for mode change to take effect
+        self.modem = mode
+        time.sleep(0.01)
 
     def write_payload(self, payload):
-        """Writes a payload to the serial port."""
         self.ser.write(bytes(payload))
 
     def read_payload(self, length, timeout=1):
-        """Reads a payload of specified length from the serial port with timeout."""
         self.ser.timeout = timeout
         data = self.ser.read(length)
-        self.ser.timeout = None  # Reset timeout to default
+        self.ser.timeout = None
         return data
 
     def set(self, freq, addr, power, rssi, air_speed=2400, net_id=0, buffer_size=240, crypt=0):
-        """Configures the LoRa module parameters."""
+        self.addr = addr  # Store the *own* address
 
-        self.addr = addr
-        self.freq = freq
-        self.power = power
-        self.rssi = rssi
-        self.send_to = addr # Update send to address
+        config = self.DEFAULT_CONFIG[:]
+        config[3] = net_id & 0xFF
+        config[4] = (addr >> 8) & 0xFF  # High byte of *own* address
+        config[5] = addr & 0xFF       # Low byte of *own* address
 
-        # Construct the configuration payload.  This is MUCH cleaner.
-        config = self.DEFAULT_CONFIG[:]  # Start with default config
-
-        config[3] = net_id & 0xFF  # Net ID
-        config[4] = (addr >> 8) & 0xFF  # High byte of address
-        config[5] = addr & 0xFF       # Low byte of address
-
-        # Calculate frequency register value
         if freq >= 850:
             freq_reg = freq - 850
         elif freq >= 410:
@@ -116,7 +100,6 @@ class sx126x:
             raise ValueError("Invalid frequency")
         config[8] = freq_reg
 
-        # Air data rate and UART baud rate (combined byte)
         air_speed_setting = {
             300:   0x00,
             1200:  0x01,
@@ -126,105 +109,85 @@ class sx126x:
             19200: 0x05,
             38400: 0x06,
             62500: 0x07,
-        }.get(air_speed, 0x02)  # Default to 2400 if invalid
-
-        # UART is fixed at 9600 in this library
+        }.get(air_speed, 0x02)
         config[6] = 0x60 | air_speed_setting
 
-        # Buffer size and power (combined byte)
         buffer_size_setting = {
             240: 0x00,
             128: 0x40,
             64:  0x80,
             32:  0xC0,
-        }.get(buffer_size, 0x00)  # Default to 240 if invalid
-
+        }.get(buffer_size, 0x00)
         power_setting = {
             22: 0x00,
             17: 0x01,
             13: 0x02,
             10: 0x03,
-        }.get(power, 0x00)  # Default to 22dBm if invalid
+        }.get(power, 0x00)
         config[7] = buffer_size_setting | power_setting
 
-        # Options byte: Enable RSSI byte if requested
         if rssi:
-            config[9] |= 0x80 # Set bit 7
+            config[9] |= 0x80
         else:
-            config[9] &= ~0x80 # Clear bit 7
+            config[9] &= ~0x80
 
-        # Encryption key
-        config[10] = (crypt >> 8) & 0xFF  # High byte
-        config[11] = crypt & 0xFF        # Low byte
+        config[10] = (crypt >> 8) & 0xFF
+        config[11] = crypt & 0xFF
 
-        # Send configuration command (write registers)
-        self.set_mode(self.MODE_STDBY) # Need to in standby to write
-        self.write_payload([0xC2, 0x00, 0x09] + config[3:]) # Write from register
+        self.set_mode(self.MODE_STDBY)
+        self.write_payload([0xC2, 0x00, 0x09] + config[3:])
 
-        # Wait for and check the response
         response = self.read_payload(3)
-        if response and response[0] == 0xC1:
-            print("Configuration successful") # Debug
-            pass
-        else:
+        if not (response and response[0] == 0xC1):
             print(f"Configuration failed. Response: {response.hex() if response else 'No response'}")
-            
+        self.set_mode(self.MODE_RX)
 
-        self.set_mode(self.MODE_RX)  # Return to RX mode
-
-
-    def send(self, data):
-        """Sends data over LoRa."""
+    def send(self, destination_address, data):
+        """Sends data to the specified destination address."""
         if isinstance(data, str):
-            data = data.encode('utf-8') # Encode string to bytes
+            data = data.encode('utf-8')
         if not isinstance(data, bytes):
             raise TypeError("Data must be bytes or a string")
 
         # Construct the packet: [destination address high, low] + [data]
-        packet = [(self.send_to >> 8) & 0xFF, self.send_to & 0xFF] + list(data)
-        self.set_mode(self.MODE_TX)  # Switch to TX mode
+        packet = [(destination_address >> 8) & 0xFF, destination_address & 0xFF] + list(data)
+        print(f"Sending packet: {bytes(packet).hex()}")  # Debug: Show the packet
+        self.set_mode(self.MODE_TX)
         self.write_payload(packet)
-
+        time.sleep(0.1) # Added a small delay
 
     def receive(self, timeout=5):
-        """Receives data over LoRa."""
-
+        """Receives data with improved address handling and serial reading."""
         self.set_mode(self.MODE_RX)
         start_time = time.time()
-        while time.time()- start_time < timeout:
+        received_data = bytearray() # Use bytearray
+
+        while time.time() - start_time < timeout:
             if self.ser.inWaiting() > 0:
-                # First read how many bytes
-                available_bytes = self.ser.inWaiting()
-                r_buff = self.ser.read(available_bytes)
-                #print(f"Received raw bytes: {r_buff.hex()}")
+                received_data += self.ser.read(self.ser.inWaiting())  # Read all available
+                print(f"Received raw bytes: {received_data.hex()}") # Debug
+                # Check if we have enough bytes for the address
+                if len(received_data) >= 2:
+                    sender_address = (received_data[0] << 8) | received_data[1]
+                    print(f"Received message from address {sender_address}")
 
-                if len(r_buff) < 2:  # At least the address
-                    print("Invalid packet received (too short)")
-                    return None
+                    # Check if this message is for us (or broadcast)
+                    if sender_address == self.addr or sender_address == 65535:
+                        payload = received_data[2:]  # Data starts after address
 
-                # Extract sender's address
-                sender_address = (r_buff[0] << 8) | r_buff[1]
-                print(f"Received message from address {sender_address}")
+                        if self.rssi and len(payload) > 0:
+                            rssi_value = -(256 - payload[-1])
+                            print(f"RSSI: {rssi_value} dBm")
+                            payload = payload[:-1]  # Remove RSSI byte
 
-                # Extract the data payload (everything after the address)
-                payload = r_buff[2:]
+                        print(f"Message: {payload.decode('utf-8', 'ignore')}")
+                        return payload
+                    else: # Message is not for us
+                        received_data = bytearray() #Clear buffer
+                        return None # Return None if not for us.
 
-                # Check if RSSI is enabled, and remove the last byte if so.
-                if self.rssi:
-                    if len(payload) > 0:
-                        rssi_value = - (256 - payload[-1])  # Convert to signed dBm
-                        print(f"RSSI: {rssi_value} dBm")
-                        payload = payload[:-1]  # Remove RSSI byte from payload
-                    else:
-                        print("Warning: RSSI enabled, but no RSSI byte received.")
+            time.sleep(0.01)  # Shorter sleep for responsiveness
 
-                print(f"Message: {payload.decode('utf-8', 'ignore')}") # Decode
-                return payload
-            time.sleep(0.1) # Short sleep to prevent busy loop
-        return None
-
-
+        return None  # Timeout
     def cancel_receive(self):
-        """Cancels any ongoing receive operation.  Essential for power loss."""
-        # Put module on Standby mode
         self.set_mode(self.MODE_STDBY)
