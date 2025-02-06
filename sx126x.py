@@ -72,6 +72,37 @@ class sx126x:
         self.ser.flushInput()
         self.set(freq,addr,power,rssi)
 
+    # Inside the sx126x class in sx126x.py
+
+    def set_mode(self, mode):
+        """Sets the operating mode of the LoRa module."""
+        if mode == MODE_RX:
+            self.modem = MODE_RX
+        elif mode == MODE_TX:
+            self.modem = MODE_TX
+        elif mode == MODE_STDBY:
+            self.modem = MODE_STDBY
+        else:
+            raise ValueError("Invalid mode")
+        self.write_payload([0x80, self.modem]) # Command to set mode
+
+    def cancel_receive(self):
+        """Cancels any ongoing receive operation.  Essential for power loss."""
+        #  The correct way to cancel receive depends on the specific hardware
+        #  and register settings.  The original library doesn't have a dedicated
+        #  cancel function.  A good approach is to put the module into standby
+        #  mode, which *should* stop any ongoing RX operation.
+        self.set_mode(MODE_STDBY)
+        #  You might need to add a short delay here (e.g., time.sleep(0.01))
+        #  to ensure the module has transitioned to standby.
+        #  Ideally, the library would provide a lower-level way to abort RX.
+
+    # Add the constant at the class level if it does not exist in the sx126x.py
+
+    MODE_STDBY = 0x01
+    MODE_TX = 0x03
+    MODE_RX = 0x06
+
     def set(self,freq,addr,power,rssi,air_speed=2400,\
             net_id=0,buffer_size = 240,crypt=0,\
             relay=False,lbt=False,wor=False):
