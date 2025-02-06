@@ -5,7 +5,7 @@ import datetime
 
 class sx126x:
 
-    # Define operating modes (constants)
+    # Define operating modes (constants) -  INSIDE THE CLASS
     MODE_STDBY = 0x01  # Standby mode
     MODE_TX = 0x02  # Transmit mode
     MODE_RX = 0x03  # Receive mode
@@ -16,7 +16,6 @@ class sx126x:
     M1 = 27
 
     # Default configuration register values (address 0x00, length 9)
-    # These are just *defaults*;  the user should be able to override them.
     DEFAULT_CONFIG = [
         0xC2,  # Header (C2 = settings lost on power off; C0 = retained)
         0x00,  # MSB of address
@@ -42,6 +41,7 @@ class sx126x:
         self.rssi = rssi
         self.send_to = addr
         self.addr_temp = addr
+        self.modem = None # Add modem to the instance variables
 
         # Initialize GPIO pins
         GPIO.setmode(GPIO.BCM)
@@ -61,7 +61,6 @@ class sx126x:
         # Apply initial configuration
         self.set(freq, addr, power, rssi)
 
-
     def set_mode(self, mode):
         """Sets the operating mode by controlling M0 and M1 pins."""
         if mode == self.MODE_RX:
@@ -78,8 +77,8 @@ class sx126x:
             GPIO.output(self.M1, GPIO.HIGH)
         else:
             raise ValueError("Invalid mode")
+        self.modem = mode # Update instance variable
         time.sleep(0.01)  # Short delay for mode change to take effect
-
 
     def write_payload(self, payload):
         """Writes a payload to the serial port."""
@@ -169,6 +168,7 @@ class sx126x:
             pass
         else:
             print(f"Configuration failed. Response: {response.hex() if response else 'No response'}")
+            
 
         self.set_mode(self.MODE_RX)  # Return to RX mode
 
@@ -222,7 +222,7 @@ class sx126x:
                 return payload
             time.sleep(0.1) # Short sleep to prevent busy loop
         return None
-    
+
 
     def cancel_receive(self):
         """Cancels any ongoing receive operation.  Essential for power loss."""

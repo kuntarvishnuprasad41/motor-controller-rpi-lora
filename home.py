@@ -113,6 +113,8 @@ def set_timer():
 
 # --- Main Program: Home Unit ---
 
+# ... (rest of home.py) ...
+
 def main():
     global home_unit_state, last_received_status, last_received_run_time, request_timer
 
@@ -141,34 +143,35 @@ def main():
                         set_timer()
 
                 # Listen for messages from the motor unit
-                node.set_mode(sx126x.MODE_RX) # Ensure RX mode for listening
+                node.set_mode(node.MODE_RX) # Use node.MODE_RX
                 payload = node.receive()
                 if payload:
                     parse_and_display_status(payload)
 
             elif home_unit_state == "TRANSMITTING_REQUEST":
-                #  send_command handles transmission and switching to WAITING_FOR_RESPONSE
+                #  send_command handles transmission
                 pass
 
             elif home_unit_state == "WAITING_FOR_RESPONSE":
-                node.set_mode(sx126x.MODE_RX)  # Ensure in RX mode.
-                payload = node.receive()  # Wait for response
+                node.set_mode(node.MODE_RX)  # Use node.MODE_RX
+                payload = node.receive()
                 if payload:
                     parse_and_display_status(payload)
                     if request_timer:
-                        request_timer.cancel()  # Clear the timer
+                        request_timer.cancel()
                     home_unit_state = "LISTENING"
-                # Timeout is handled by handle_response_timeout (called by the Timer)
+                # Timeout handled by timer
 
-            time.sleep(0.1) # Prevent 100% CPU usage
+            time.sleep(0.1)
 
     except KeyboardInterrupt:
         print("Home Unit Shutting Down...")
     finally:
         if request_timer:
             request_timer.cancel()
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings) # Restore terminal settings
-        node.set_mode(sx126x.MODE_STDBY)
+        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+        node.set_mode(node.MODE_STDBY) # Use node.MODE_STDBY
 
+# ... (rest of home.py) ...
 if __name__ == "__main__":
     main()

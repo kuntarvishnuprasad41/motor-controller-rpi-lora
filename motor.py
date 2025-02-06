@@ -160,6 +160,8 @@ def send_scheduled_update():
     scheduled_update_timer.start()
 
 # --- Main Program: Motor Unit ---
+# ... (rest of motor.py)
+
 def main():
     global motor_unit_state, motor_running, motor_on_time, total_run_time, scheduled_update_timer, motor_run_timer
 
@@ -167,96 +169,38 @@ def main():
     print("Motor Unit Initialized. Address:", NODE_ADDRESS)
     scheduled_update_timer = Timer(STATUS_UPDATE_INTERVAL, send_scheduled_update)
     scheduled_update_timer.start()
-    node.set_mode(sx126x.MODE_RX) # Ensure we start in RX mode
+    node.set_mode(node.MODE_RX) # Use node.MODE_RX here
     try:
         while True:
             if motor_unit_state == "LISTENING":
-                node.set_mode(sx126x.MODE_RX) # Ensure RX mode for listening
+                node.set_mode(node.MODE_RX)  # Use node.MODE_RX
                 payload = node.receive()
                 if payload:
                     message_type, data = parse_request(payload)
                     #print(f"Received: {payload}") # Debug
-
-                    if message_type == MSG_TYPE_ON:
-                        motor_unit_state = "PROCESSING_REQUEST"
-                        turn_on_motor()
-                        motor_running = True
-                        motor_on_time = int(time.time())
-                        save_value(MOTOR_ON_TIME_FILE, motor_on_time)
-                        motor_unit_state = "TRANSMITTING_RESPONSE"
-
-                    elif message_type == MSG_TYPE_OFF:
-                        motor_unit_state = "PROCESSING_REQUEST"
-                        turn_off_motor()
-                        motor_running = False
-                        if motor_on_time > 0:
-                            current_time = int(time.time())
-                            total_run_time += current_time - motor_on_time
-                            save_value(TOTAL_RUNTIME_FILE, total_run_time)
-                            motor_on_time = 0 #Reset on time
-                            save_value(MOTOR_ON_TIME_FILE, motor_on_time)
-                        motor_run_timer = 0
-                        motor_unit_state = "TRANSMITTING_RESPONSE"
-
-                    elif message_type == MSG_TYPE_STATUS_REQUEST:
-                        motor_unit_state = "TRANSMITTING_RESPONSE"
-
-                    elif message_type == MSG_TYPE_SET_TIMER:
-                        motor_unit_state = "PROCESSING_REQUEST"
-                        try:
-                            timer_minutes = int(data[0])
-                            motor_run_timer = timer_minutes * 60  # Convert to seconds
-                            turn_on_motor()
-                            motor_running = True
-                            motor_on_time = int(time.time())
-                            save_value(MOTOR_ON_TIME_FILE, motor_on_time)
-                            motor_unit_state = "TRANSMITTING_RESPONSE"
-                        except (ValueError, IndexError, TypeError):
-                            print("Invalid timer value received.")
-                            motor_unit_state = "LISTENING"
-
+                    # ... (rest of your processing logic) ...
             elif motor_unit_state == "TRANSMITTING_STATUS":
-                node.set_mode(sx126x.MODE_TX)  # Switch to TX mode
+                node.set_mode(node.MODE_TX)  # Use node.MODE_TX
                 message = construct_status_message()
                 node.send(message)
                 #print(f"Sent Status: {message}") # Debug
                 motor_unit_state = "LISTENING"
-
-
             elif motor_unit_state == "TRANSMITTING_RESPONSE":
-                node.set_mode(sx126x.MODE_TX)  # Switch to TX mode
+                node.set_mode(node.MODE_TX)  # Use node.MODE_TX
                 message = construct_status_message()
                 node.send(message)
-                #print(f"Sent Response: {message}") # Debug
+                #print(f"Sent Response: {message}") #Debug
                 motor_unit_state = "LISTENING"
-
-
-            elif motor_unit_state == "PROCESSING_REQUEST":
-                pass  # Request processing is done when received.
-
-            # Timer Expiry Check (Motor Run Timer)
-            if motor_running and motor_run_timer > 0:
-                current_time = int(time.time())
-                if current_time - motor_on_time >= motor_run_timer:
-                    turn_off_motor()
-                    motor_running = False
-                    if motor_on_time > 0:
-                        total_run_time += current_time - motor_on_time
-                        save_value(TOTAL_RUNTIME_FILE, total_run_time)
-                    motor_on_time = 0 # Reset motor on time
-                    save_value(MOTOR_ON_TIME_FILE, motor_on_time)  # Clear motor_on_time
-                    motor_run_timer = 0
-                    motor_unit_state = "TRANSMITTING_STATUS"
-
-            time.sleep(0.1)
+            # ... (rest of your state machine logic)
+            time.sleep(0.1) # Short delay
 
     except KeyboardInterrupt:
         print("Motor Unit Shutting Down...")
     finally:
         if scheduled_update_timer:
             scheduled_update_timer.cancel()
-        node.set_mode(sx126x.MODE_STDBY) # Put into standby before exiting.
+        node.set_mode(node.MODE_STDBY) # Use node.MODE_STDBY
         GPIO.cleanup()
-
+# ... (rest of motor.py) ...
 if __name__ == "__main__":
     main()
