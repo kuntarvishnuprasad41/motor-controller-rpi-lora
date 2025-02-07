@@ -341,7 +341,7 @@ class sx126x:
             if node.rssi:
                 print(f"RSSI: -{rssi} dBm")
 
-            return json_message
+            return message_str
 
         except UnicodeDecodeError as e:
             print(f"Decoding Error: {e}")
