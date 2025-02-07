@@ -311,6 +311,44 @@ class sx126x:
             #     pass
                 #print('\x1b[2A',end='\r')
 
+    def process_received_data(node, received_data):  # New helper function
+        if received_data is None:
+            return None
+
+        node_address, message_bytes, rssi = received_data  # Unpack the tuple
+
+        try:
+            message_str = message_bytes.decode('utf-8', errors='ignore')
+
+            try:
+                start = message_str.find('{')
+                end = message_str.rfind('}') + 1
+                if start!= -1 and end!= -1:
+                    json_message = message_str[start:end]
+                else:
+                    print("Message format error, no JSON found")
+                    print("Raw data: " + message_str)
+                    return None
+
+            except Exception as e:
+                print(f"Error extracting JSON: {e}")
+                print("Raw data: " + message_str)
+                return None
+
+            print(f"Received from address \033[1;32m{node_address} node\033[0m: {json_message}")
+            current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            print(f"@ [{current_time}] ")
+            if node.rssi:
+                print(f"RSSI: -{rssi} dBm")
+
+            return json_message
+
+        except UnicodeDecodeError as e:
+            print(f"Decoding Error: {e}")
+            print(f"Raw bytes: {message_bytes}")  # Print raw bytes for debugging
+            return None
+    
+
     def get_channel_rssi(self):
         GPIO.output(self.M1,GPIO.LOW)
         GPIO.output(self.M0,GPIO.LOW)
