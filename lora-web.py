@@ -13,40 +13,43 @@ node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, po
 target_address = 30  # Your target address
 
 # Wrapper function for safe receive with address filtering, retries, and error handling
-def safe_receive(node, max_retries=5):  # Increased retries
+def safe_receive(node, max_retries=5):
     for _ in range(max_retries):
         try:
-            received_data = node.receive()  # Receive data first
+            received_data = node.receive()
             if received_data:
                 try:
-                    # Attempt to decode and parse JSON
-                    decoded_data = received_data.decode('utf-8', errors='ignore')  # Ignore invalid characters
-                    received_json = json.loads(decoded_data)
+                    # Check if the received data is already a string
+                    if isinstance(received_data, str):
+                        received_json = json.loads(received_data)  # Parse the JSON directly
+                    else:  # If it's bytes, decode it
+                        decoded_data = received_data.decode('utf-8', errors='ignore')
+                        received_json = json.loads(decoded_data)
+
                     received_address = received_json.get('address')
                     print(f"Received message from address: {received_address}")
 
-                    if received_address!= target_address:  # Filter by address
+                    if received_address!= target_address:
                         print("Message discarded: Wrong address")
-                        return None  # Discard if not for us
+                        return None
 
-                    return received_data  # If it is for us, return
+                    return received_data
 
                 except (json.JSONDecodeError, ValueError) as e:
                     print(f"Error decoding or parsing JSON: {e}. Raw data: {received_data}")
-                    return None  # Discard if JSON format is incorrect
+                    return None
 
-            time.sleep(0.02)  # Small delay before retrying
+            time.sleep(0.02)
 
         except IndexError:
             print("IndexError caught in safe_receive. No data or incomplete data.")
-            time.sleep(0.02)  # Small delay before retrying
+            time.sleep(0.02)
 
         except Exception as e:
             print(f"An unexpected error occurred in safe_receive: {e}")
             return None
 
-    return None  # Return None if all retries fail
-
+    return None
 # Threading for receiving data (non-blocking) with a condition variable
 received_data_queue =[]
 queue_lock = threading.Lock()  # Create a thread lock
