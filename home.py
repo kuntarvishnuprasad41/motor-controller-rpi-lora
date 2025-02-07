@@ -70,9 +70,10 @@ try:
 
                 sys.stdout.flush()
 
-        if receiving_mode: #if in receiving mode
-            node.receive()  # Receive data if in receive mode
-            received_data = node.get_received_data() #get the received data
+        if receiving_mode:
+             # Call node.receive(). It prints the data itself.
+            received_data = node.receive()  #get the received data
+            time.sleep(0.1)  # Small delay
             if received_data:
                 current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 print(f"[{current_time}] Received: {received_data}: ReceiveDataContinuously")
