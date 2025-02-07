@@ -277,7 +277,7 @@ class sx126x:
                 else:
                     print("Message format error, no JSON found")
                     print("Raw data: " + message_str)
-                    return None # Return None to indicate an error
+                    return message_str # Return None to indicate an error
 
             except Exception as e:
                 print(f"Error extracting JSON: {e}")
