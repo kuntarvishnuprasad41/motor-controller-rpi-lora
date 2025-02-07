@@ -75,7 +75,7 @@ try:
                         GPIO.output(23, GPIO.HIGH)  # Turn ON relay 23
                         time.sleep(0.5)
                         
-                        GPIO.output(23, GPIO.HIGH)  # Turn ON relay 23
+                        GPIO.output(23, GPIO.LOW)  # Turn ON relay 23
                         send_reply("Motor on", target_address)  # Send "Motor on" message
                     elif command == "OFF":
                         GPIO.output(23, GPIO.LOW)   # Turn OFF relay 23
