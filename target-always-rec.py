@@ -12,6 +12,9 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(23, GPIO.OUT)  # Relay for ON
 GPIO.setup(24, GPIO.OUT)  # Relay for OFF
 
+GPIO.output(23, GPIO.LOW)
+GPIO.output(24, GPIO.LOW)
+
 old_settings = termios.tcgetattr(sys.stdin)
 tty.setcbreak(sys.stdin.fileno())
 
