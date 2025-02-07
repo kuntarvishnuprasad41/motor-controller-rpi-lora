@@ -12,41 +12,43 @@ current_address = 0
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)  # Adjust serial port
 target_address = 30  # Your target address
 
-# Wrapper function for safe receive with address filtering and retries
-def safe_receive(node, max_retries=3):
+# Wrapper function for safe receive with address filtering, retries, and error handling
+def safe_receive(node, max_retries=5):  # Increased retries
     for _ in range(max_retries):
         try:
             received_data = node.receive()  # Receive data first
-            if received_data:  # Check if data was received (not None)
+            if received_data:
                 try:
-                    # Attempt to decode to get the address (if it's part of the message)
-                    decoded_data = received_data.decode('utf-8')
-                    received_json = json.loads(decoded_data) # Parse JSON to access the address
-                    received_address = received_json.get('address') # Assumes 'address' key in JSON
-                    print(f"Received message (potentially) from address: {received_address}")
+                    # Attempt to decode and parse JSON
+                    decoded_data = received_data.decode('utf-8', errors='ignore')  # Ignore invalid characters
+                    received_json = json.loads(decoded_data)
+                    received_address = received_json.get('address')
+                    print(f"Received message from address: {received_address}")
 
-                    if received_address!= target_address and received_address is not None:  # Filter by address
+                    if received_address!= target_address:  # Filter by address
                         print("Message discarded: Wrong address")
                         return None  # Discard if not for us
-                    return received_data # If it is for us, return
 
-                except (UnicodeDecodeError, json.JSONDecodeError) as e:
+                    return received_data  # If it is for us, return
+
+                except (json.JSONDecodeError, ValueError) as e:
                     print(f"Error decoding or parsing JSON: {e}. Raw data: {received_data}")
-                    return None # Discard if JSON format is incorrect.
+                    return None  # Discard if JSON format is incorrect
+
             time.sleep(0.02)  # Small delay before retrying
-            continue # Retry if no data
-        except IndexError:  # Keep this for general receive errors
+
+        except IndexError:
             print("IndexError caught in safe_receive. No data or incomplete data.")
             time.sleep(0.02)  # Small delay before retrying
-            continue  # Retry
+
         except Exception as e:
             print(f"An unexpected error occurred in safe_receive: {e}")
             return None
+
     return None  # Return None if all retries fail
 
-
-# Threading for receiving data (non-blocking)
-received_data_queue = []
+# Threading for receiving data (non-blocking) with a condition variable
+received_data_queue =[]
 queue_lock = threading.Lock()  # Create a thread lock
 data_received_condition = threading.Condition(queue_lock)  # Condition variable
 
@@ -62,13 +64,11 @@ def receive_data_thread():
 
 receive_thread = threading.Thread(target=receive_data_thread, daemon=True)
 receive_thread.start()
-g.Thread(target=receive_data_thread, daemon=True)
-receive_thread.start()
 
 def send_command(command):
     try:
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        message = {"command": command, "time": timestamp, "address": current_address} # Include the address
+        message = {"command": command, "time": timestamp, "address": current_address}  # Include the address
         json_message = json.dumps(message)
 
         original_address = node.addr
@@ -102,7 +102,7 @@ def handle_command():
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
     global received_data_queue
-    data_to_send = []
+    data_to_send =[]
 
     with data_received_condition:  # Acquire the condition lock
         if not received_data_queue:  # Check if the queue is empty
@@ -110,7 +110,7 @@ def receive_data():
 
         # If data is available or timeout occurs, retrieve and clear the queue
         data_to_send = received_data_queue[:]
-        received_data_queue = []
+        received_data_queue =[]
 
     return jsonify(data_to_send)
 
