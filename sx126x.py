@@ -366,7 +366,7 @@ class sx126x:
                 e = datetime.datetime.now()
                 f.write(f"Packet RSSI: -{rssi}dBm Current date and time = {e}\n")
 
-        return json_message
+            return json_message
     
 
              
