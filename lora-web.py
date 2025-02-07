@@ -22,10 +22,7 @@ def safe_receive(node, max_retries=3):  # Reduced retries
             # if received_data!=None:
             #     print(f"Received in lora: {received_data}")
 
-            if received_data!=None:
-                    print(f"Received in lora: {received_data}")
-
-                    
+            
             try:
                 received_data = node.receivetemp()
                 if received_data!=None:
