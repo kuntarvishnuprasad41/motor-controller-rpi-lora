@@ -255,57 +255,76 @@ class sx126x:
         time.sleep(0.1)
 
     def receive(self):
+        GPIO.output(self.M1,GPIO.LOW)
+        GPIO.output(self.M0,GPIO.LOW)
+        time.sleep(0.1)
+
         if self.ser.inWaiting() > 0:
-            time.sleep(0.5)
+            time.sleep(0.05)  # Shorter delay
+            self.ser.flushInput()
             r_buff = self.ser.read(self.ser.inWaiting())
 
-            node_address = (r_buff[0] << 8) + r_buff[1]
-            print(f"receive message from address \033[1;32m{node_address} node\033[0m {r_buff[2:]}")
+            if not r_buff:
+                print("Warning: Nothing read from serial buffer.")
+                return None
+
+            if len(r_buff) < 2:  # Check for minimum length (address)
+                print(f"Warning: Received data too short ({len(r_buff)} bytes). Raw: {r_buff}")
+                return None
 
             try:
-                message_str = r_buff.decode('utf-8')
-            except UnicodeDecodeError as e:
-                print(f"Error decoding message: {e}")
-                print(f"Raw data: {r_buff}")
-                return None  # Return None to indicate an error
+                node_address = (r_buff << 8) + r_buff  # Correct address extraction
 
-            try:
-                start = message_str.find('{')  # Find the first opening curly brace
-                end = message_str.rfind('}') + 1 # Find the last closing curly brace
-                if start != -1 and end != -1:
-                    json_message = message_str[start:end]
+                if self.rssi:
+                    if len(r_buff) < 3:  # Check for minimum length (address + RSSI)
+                        print(f"Warning: Received data too short for RSSI ({len(r_buff)} bytes). Raw: {r_buff}")
+                        return None
+                    rssi = 256 - r_buff[-1]
+                    message_bytes = r_buff[2:-1]  # Exclude address and RSSI
                 else:
-                    print("Message format error, no JSON found")
-                    print("Raw data: " + message_str)
-                    return None # Return None to indicate an error
+                    message_bytes = r_buff[2:]
+                    rssi = None  # Set rssi to None if not available
 
-            except Exception as e:
-                print(f"Error extracting JSON: {e}")
-                print("Raw data: " + message_str)
-                return None # Return None to indicate an error
+                try:
+                    message_str = message_bytes.decode('utf-8', errors='ignore')
+                    try:
+                        start = message_str.find('{')
+                        end = message_str.rfind('}') + 1
+                        if start!= -1 and end!= -1:
+                            json_message = message_str[start:end]
+                        else:
+                            print("Message format error, no JSON found")
+                            print("Raw data: " + message_str)
+                            return None
 
-            current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            print(f"@ [{current_time}] ")
-            rssi = 256 - r_buff[-1:][0]
-            print(f"the packet rssi value: -{rssi}dBm")
-            self.get_channel_rssi()
-            e = datetime.datetime.now()
-            with open("g.txt", "a") as f:
-                f.write(f"Packet RSSI: -{rssi}dBm Current date and time = {e}\n")
-            print(f"@ [{rssi}]dBm ")
+                    except Exception as e:
+                        print(f"Error extracting JSON: {e}")
+                        print("Raw data: " + message_str)
+                        return None
 
-            
+                    current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+                    print(f"@ [{current_time}] ")
+                    if rssi is not None:
+                        print(f"RSSI: -{rssi} dBm")
 
-            if self.rssi:
-                    rssi = 256 - r_buff[-1:][0]
-                    print(f"the packet rssi value: -{rssi}dBm")
-                    self.get_channel_rssi()
-                    e = datetime.datetime.now()
-                    with open("g.txt", "a") as f:
-                        f.write(f"Packet RSSI: -{rssi}dBm Current date and time = {e}\n")
-            print(f"receive    {json_message} ")
-            
-            return json_message  # Return the complete JSON string
+                    print(f"Received from address \033[1;32m{node_address} node\033[0m: {json_message}")  # Corrected print statement
+                    return json_message
+
+                except UnicodeDecodeError as e:
+                    print(f"Decoding Error: {e}")
+                    print(f"Raw bytes: {message_bytes}")  # Print raw bytes for debugging
+                    return None
+
+            except IndexError:  # Should not happen now, but keep for other potential issues
+                print("Error: Incomplete data received.")
+                return None
+            except Exception as e: # Catch any other error
+                print(f"Receive function error: {e}")
+                print(f"Raw buffer: {r_buff}") # Print the raw buffer for debugging
+                return None
+
+        return None
+
 
             # else:
             #     pass
