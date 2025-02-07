@@ -20,25 +20,22 @@ target_address = 30  # Your target address
 received_data_queue = []
 lora_lock = threading.Lock()
 data_received_condition = threading.Condition()
+data_available = threading.Condition(lora_lock)  # Condition variable
 
-def safe_receive(node, max_retries=3):  # Reduced retries
+
+def safe_receive(node, max_retries=3):
     for _ in range(max_retries):
-        with lora_lock:  # Acquire lock for LoRa receive
-            # received_data = node.receive()
-            # if received_data!=None:
-            #     print(f"Received in lora: {received_data}")
-
-            
+        with lora_lock:
             try:
                 received_data = node.receivetemp()
-                if received_data!=None:
-                    received_data_queue.insert(0, received_data)
+                if received_data:
                     print(f"Received in lora: {received_data}")
+                    received_data_queue.insert(0, received_data)
+                    data_available.notify()  # Signal new data
                     return received_data
-                time.sleep(0.01)  # Shorter delay
+                time.sleep(0.01)
             except Exception as e:
                 print(f"Receive error: {e}")
-                
                 return None
     return None
 
@@ -118,19 +115,10 @@ def process_received_data(node, received_data):
 
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
-    timeout = 5  # Maximum time to wait (seconds)
-    start_time = time.time()
-
-    while time.time() - start_time < timeout:
-        with lora_lock: # Protect access to the queue when reading.
-            if received_data_queue:
-                data_to_send = received_data_queue[:] # Copy for thread safety
-                return jsonify(data_to_send)
-        time.sleep(0.1)  # Check every 100ms (adjust as needed)
-
-    return jsonify([])  # Return empty if no data after timeout
-
-
+    with lora_lock:
+        data_available.wait(timeout=5)  # Wait for signal, release lock while waiting
+        data_to_send = received_data_queue[:]
+        return jsonify(data_to_send)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
