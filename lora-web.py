@@ -84,6 +84,32 @@ def handle_command():
         return jsonify({"status": "error", "message": "Invalid command."}), 400
 
 
+
+def process_received_data(node, received_data):
+     
+    if isinstance(received_data, dict):
+        return received_data # no change needed
+
+    try:
+        # Attempt to parse the JSON string. If it's already a dict, this will raise an exception.
+        data_dict = json.loads(received_data)
+        return data_dict  # Return the dictionary if parsing is successful
+
+    except json.JSONDecodeError as e:
+        print(f"JSONDecodeError: {e}")
+        print(f"Raw data: {received_data}")
+        return None  # Return None to indicate an error
+
+    except TypeError as e: # Handle cases where received_data might be None or not a string
+        print(f"TypeError: {e}")
+        print(f"Received data: {received_data}")
+        return None
+
+    except Exception as e: # Catch any other unexpected errors
+        print(f"An unexpected error occurred: {e}")
+        print(f"Received data: {received_data}")
+        return None
+
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
     global received_data_queue
