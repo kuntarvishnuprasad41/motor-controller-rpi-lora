@@ -34,7 +34,7 @@ def safe_receive(node, max_retries=3):
     for _ in range(max_retries):
         with lora_lock:
             try:
-                r_buff = node.receive()
+                r_buff = node.receivetemp()
                 if r_buff:
                     if len(r_buff) < 2:  # Check for minimum length (address)
                         print(f"Warning: Received data too short ({len(r_buff)} bytes). Raw: {r_buff}")
