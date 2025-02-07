@@ -15,6 +15,9 @@ target_address = 30  # Your target address
 # Lock for LoRa operations to prevent conflicts
 lora_lock = threading.Lock()
 
+received_data_queue = []
+data_received_condition = threading.Condition()
+
 def safe_receive(node, max_retries=3):  # Reduced retries
     for _ in range(max_retries):
         with lora_lock:  # Acquire lock for LoRa receive
@@ -36,8 +39,7 @@ def safe_receive(node, max_retries=3):  # Reduced retries
                 return None
     return None
 
-received_data_queue = []
-data_received_condition = threading.Condition()
+
 
 def receive_data_thread():
     while True:
