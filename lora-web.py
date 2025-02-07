@@ -7,20 +7,31 @@ import threading
 
 app = Flask(__name__)
 
-# Initialize your LoRa module (same as in your original script)
+# Initialize your LoRa module
 current_address = 0
-node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)
+node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)  # Adjust serial port
 target_address = 30  # Your target address
+
+# Wrapper function for safe receive
+def safe_receive(node):
+    try:
+        received_data = node.receive()
+        return received_data
+    except IndexError:
+        print("IndexError caught in safe_receive. No data or incomplete data.")
+        return None
 
 # Threading for receiving data (non-blocking)
 received_data_queue = []
+
 def receive_data_thread():
     while True:
-        received_data = node.receive()
-        if received_data:
+        received = safe_receive(node) # Use the wrapper here
+        if received:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            received_data_queue.append({"data": received_data, "time": current_time})
+            received_data_queue.append({"data": received, "time": current_time})
         time.sleep(0.1)  # Check for data every 100ms
+
 
 receive_thread = threading.Thread(target=receive_data_thread, daemon=True)
 receive_thread.start()
@@ -62,9 +73,22 @@ def handle_command():
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
     global received_data_queue
-    data_to_send = received_data_queue[:]  # Create a copy
-    received_data_queue = []  # Clear the queue
-    return jsonify(data_to_send)
+    data_to_send = []
+
+    for _ in range(5):  # Try a few times to receive data
+        received = safe_receive(node) # Use the wrapper here
+        if received:
+            current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            data_to_send.append({"data": received, "time": current_time})
+        time.sleep(0.2)  # Small delay
+
+    if data_to_send:
+        received_data_queue.extend(data_to_send)
+        data_to_send = received_data_queue[:]
+        received_data_queue = []
+        return jsonify(data_to_send)
+    else:
+        return jsonify([]) # Return empty if nothing received
 
 
 
