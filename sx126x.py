@@ -286,6 +286,9 @@ class sx126x:
 
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             print(f"@ [{current_time}] ")
+            print(f"@ [{self}] ")
+
+            
 
             if self.rssi:
                     rssi = 256 - r_buff[-1:][0]
