@@ -287,6 +287,11 @@ class sx126x:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             print(f"@ [{current_time}] ")
             rssi = 256 - r_buff[-1:][0]
+            print(f"the packet rssi value: -{rssi}dBm")
+            self.get_channel_rssi()
+            e = datetime.datetime.now()
+            with open("g.txt", "a") as f:
+                f.write(f"Packet RSSI: -{rssi}dBm Current date and time = {e}\n")
             print(f"@ [{rssi}]dBm ")
 
             
