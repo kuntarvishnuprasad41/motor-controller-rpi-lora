@@ -295,10 +295,10 @@ class sx126x:
                     with open("g.txt", "a") as f:
                         f.write(f"Packet RSSI: -{rssi}dBm Current date and time = {e}\n")
 
-                    return json_message  # Return the complete JSON string
+            return json_message  # Return the complete JSON string
 
-            else:
-                pass
+            # else:
+            #     pass
                 #print('\x1b[2A',end='\r')
 
     def get_channel_rssi(self):
