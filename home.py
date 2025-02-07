@@ -40,7 +40,7 @@ try:
         node.receive()  # Continuously try to receive
         time.sleep(0.1)  # Small delay to prevent busy-waiting
 
-        if select.select([sys.stdin],,, 0) == ([sys.stdin],,): #check for command input
+        if select.select([sys.stdin],[],[], 0) == ([sys.stdin],[],): #check for command input
             c = sys.stdin.read(1)
 
             if c == '\x1b':  # Esc key
