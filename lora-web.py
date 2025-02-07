@@ -27,6 +27,7 @@ def safe_receive(node, max_retries=3):  # Reduced retries
                 received_data = node.receivetemp()
                 if received_data!=None:
                     print(f"Received in lora: {received_data}")
+                    received_data_queue.append(received_data)
                     return received_data
                 time.sleep(0.01)  # Shorter delay
             except Exception as e:
