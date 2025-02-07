@@ -11,8 +11,9 @@ old_settings = termios.tcgetattr(sys.stdin)
 tty.setcbreak(sys.stdin.fileno())
 
 time.sleep(1)
-print("Enter curr node address (0-65535):")
-current_address = int(input())
+# print("Enter curr node address (0-65535):")
+# current_address = int(input())
+current_address = 0
 
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)
 
@@ -33,8 +34,9 @@ def send_command(command, target_address):
 
 try:
     time.sleep(1)
-    print("Enter target node address (0-65535):")
-    target_address = int(input())
+    # print("Enter target node address (0-65535):")
+    # target_address = int(input())
+    target_address = 30
 
     print("Press \033[1;32m1\033[0m to send Motor ON command")
     print("Press \033[1;32m2\033[0m to send Motor OFF command")
