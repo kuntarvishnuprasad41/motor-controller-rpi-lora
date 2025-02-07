@@ -44,6 +44,7 @@ try:
 
         if select.select([sys.stdin],[],[], 0) == ([sys.stdin],[],):
             c = sys.stdin.read(1)
+            print(f"Received: {c}")
 
             if c == '\x1b':  # Esc key
                 break
