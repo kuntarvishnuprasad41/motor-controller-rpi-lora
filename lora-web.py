@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify, render_template
 import sys
-import sx126x  # Your LoRa library
+import sx126x
 import time
 import json
 import threading
@@ -25,7 +25,7 @@ def safe_receive(node):
         return None
 
 # Threading for receiving data (non-blocking)
-received_data_queue =[]
+received_data_queue =
 queue_lock = threading.Lock()  # Create a thread lock
 
 def receive_data_thread():
@@ -35,7 +35,6 @@ def receive_data_thread():
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             with queue_lock:  # Acquire the lock before modifying the queue
                 received_data_queue.append({"data": received, "time": current_time})
-            #print(f"Received data: {received}") # Debugging: Print received data
         time.sleep(0.05)  # Reduce delay for faster checks (experiment)
 
 receive_thread = threading.Thread(target=receive_data_thread, daemon=True)
@@ -78,13 +77,21 @@ def handle_command():
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
     global received_data_queue
-    data_to_send =[]
+    data_to_send =
 
-    with queue_lock:  # Lock during data retrieval and clearing
-        data_to_send = received_data_queue[:]
-        received_data_queue = [] # Clear the queue after sending data
+    with queue_lock:
+        for item in received_data_queue:  # Iterate through each item
+            try:
+                decoded_data = item['data'].decode('utf-8')  # Decode the bytes to string
+                data_to_send.append({"data": decoded_data, "time": item['time']})
+            except UnicodeDecodeError as e:
+                print(f"Decoding error: {e}. Raw data: {item['data']}")
+                data_to_send.append({"data": "Decoding Error", "time": item['time']})  # Or handle differently
+
+        received_data_queue =  # Clear the queue *after* processing
 
     return jsonify(data_to_send)
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')  # host='0.0.0.0' for external access
