@@ -155,7 +155,7 @@ class sx126x:
                     #print("parameters setting fail :",r_buff)
                 break
             else:
-                print("setting has been failed, trying again!")
+                print("trying again!")
                 self.ser.flushInput()
                 time.sleep(0.2)
                 print('\x1b[1A',end='\r')
