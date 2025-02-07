@@ -12,7 +12,7 @@ tty.setcbreak(sys.stdin.fileno())
 
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=30, power=22, rssi=False)
 
-RECEIVE_DURATION = 2  # seconds
+RECEIVE_DURATION = 10  # seconds
 
 def send_command(command, target_address):
     """Sends a command and starts a timer for receiving."""
