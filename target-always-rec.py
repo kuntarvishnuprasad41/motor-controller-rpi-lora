@@ -22,10 +22,32 @@ current_address = int(input())
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)
 
 def send_command(command, target_address):
-    # ... (No changes needed here)
+    """Sends a command."""
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    message = {"command": command, "time": timestamp}
+    json_message = json.dumps(message)
+
+    original_address = node.addr
+    node.addr_temp = node.addr
+    node.set(node.freq, target_address, node.power, node.rssi)
+    node.send(json_message)
+    node.set(node.freq, original_address, node.power, node.rssi)
+    time.sleep(0.2)
+    print(f"Command sent to {target_address}.")
 
 def send_reply(message, target_address):
-    # ... (No changes needed here)
+    """Sends a reply."""
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    reply_message = {"reply": message, "time": timestamp}  # Use "reply" key
+    json_message = json.dumps(reply_message)
+
+    original_address = node.addr
+    node.addr_temp = node.addr
+    node.set(node.freq, target_address, node.power, node.rssi)
+    node.send(json_message)
+    node.set(node.freq, original_address, node.power, node.rssi)
+    time.sleep(0.2)
+    print(f"Reply sent to {target_address}.")
 
 try:
     time.sleep(1)
