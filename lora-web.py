@@ -25,7 +25,7 @@ def safe_receive(node):
         return None
 
 # Threading for receiving data (non-blocking)
-received_data_queue =
+received_data_queue = []
 queue_lock = threading.Lock()  # Create a thread lock
 
 def receive_data_thread():
@@ -77,7 +77,7 @@ def handle_command():
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
     global received_data_queue
-    data_to_send =
+    data_to_send =[]
 
     with queue_lock:
         for item in received_data_queue:  # Iterate through each item
@@ -88,7 +88,7 @@ def receive_data():
                 print(f"Decoding error: {e}. Raw data: {item['data']}")
                 data_to_send.append({"data": "Decoding Error", "time": item['time']})  # Or handle differently
 
-        received_data_queue =  # Clear the queue *after* processing
+        received_data_queue =  []# Clear the queue *after* processing
 
     return jsonify(data_to_send)
 
