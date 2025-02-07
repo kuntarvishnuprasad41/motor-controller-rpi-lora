@@ -46,19 +46,23 @@ def safe_receive(node, max_retries=3):
 
 
 # Threading for receiving data (non-blocking)
-received_data_queue =[]
+received_data_queue = []
 queue_lock = threading.Lock()  # Create a thread lock
+data_received_condition = threading.Condition(queue_lock)  # Condition variable
 
 def receive_data_thread():
     while True:
-        received = safe_receive(node)
-        if received:
-            current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            with queue_lock:  # Acquire the lock before modifying the queue
+        with data_received_condition:  # Acquire the condition lock
+            received = safe_receive(node)
+            if received:
+                current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                 received_data_queue.append({"data": received, "time": current_time})
-        time.sleep(0.05)  # Reduce delay for faster checks (experiment)
+                data_received_condition.notify()  # Notify waiting threads that data is available
+            data_received_condition.wait(0.1)  # Wait with a timeout
 
 receive_thread = threading.Thread(target=receive_data_thread, daemon=True)
+receive_thread.start()
+g.Thread(target=receive_data_thread, daemon=True)
 receive_thread.start()
 
 def send_command(command):
@@ -100,16 +104,13 @@ def receive_data():
     global received_data_queue
     data_to_send = []
 
-    with queue_lock:
-        for item in received_data_queue:  # Iterate through each item
-            try:
-                decoded_data = item['data'].decode('utf-8')  # Decode the bytes to string
-                data_to_send.append({"data": decoded_data, "time": item['time']})
-            except UnicodeDecodeError as e:
-                print(f"Decoding error: {e}. Raw data: {item['data']}")
-                data_to_send.append({"data": "Decoding Error", "time": item['time']})  # Or handle differently
+    with data_received_condition:  # Acquire the condition lock
+        if not received_data_queue:  # Check if the queue is empty
+            data_received_condition.wait(1)  # Wait for data with a timeout of 1 second
 
-        received_data_queue =  [] # Clear the queue *after* processing
+        # If data is available or timeout occurs, retrieve and clear the queue
+        data_to_send = received_data_queue[:]
+        received_data_queue = []
 
     return jsonify(data_to_send)
 
