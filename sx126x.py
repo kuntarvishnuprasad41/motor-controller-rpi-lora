@@ -259,24 +259,43 @@ class sx126x:
             time.sleep(0.5)
             r_buff = self.ser.read(self.ser.inWaiting())
 
-            print("receive message from address\033[1;32m %d node \033[0m"%((r_buff[0]<<8)+r_buff[1]),end='\r\n',flush = True)
-            print("message is "+str(r_buff)+"\n"+str(r_buff[0])+"\n"+str(r_buff[1])+"\n"+str(r_buff[2:-1]),end='\r\n')
+            node_address = (r_buff[0] << 8) + r_buff[1]
+            print(f"receive message from address \033[1;32m{node_address} node\033[0m")
+
+            try:
+                message_str = r_buff.decode('utf-8')
+            except UnicodeDecodeError as e:
+                print(f"Error decoding message: {e}")
+                print(f"Raw data: {r_buff}")
+                return None  # Return None to indicate an error
+
+            try:
+                start = message_str.find('{')  # Find the first opening curly brace
+                end = message_str.rfind('}') + 1 # Find the last closing curly brace
+                if start != -1 and end != -1:
+                    json_message = message_str[start:end]
+                else:
+                    print("Message format error, no JSON found")
+                    print("Raw data: " + message_str)
+                    return None # Return None to indicate an error
+
+            except Exception as e:
+                print(f"Error extracting JSON: {e}")
+                print("Raw data: " + message_str)
+                return None # Return None to indicate an error
+
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             print(f"@ [{current_time}] ")
 
-            # print RSSI
             if self.rssi:
-                # print('\x1b[3A',end='\r')
-                print("the packet rssi value: -{0}dBm".format(256-r_buff[-1:][0]))
-                # f=open("g.txt","a")
-                self.get_channel_rssi()
-                e = datetime.datetime.now()
-                f=open("g.txt","a")
-                f.write("Packet RSSI: -{0}dBm".format(256-r_buff[-1:][0]))
-                #f.write("a")
-                # print ("Current date and time = %s" % e)
-                f.write(" Current date and time = %s\n" % e)
-                f.close()
+                    rssi = 256 - r_buff[-1:][0]
+                    print(f"the packet rssi value: -{rssi}dBm")
+                    self.get_channel_rssi()
+                    e = datetime.datetime.now()
+                    with open("g.txt", "a") as f:
+                        f.write(f"Packet RSSI: -{rssi}dBm Current date and time = {e}\n")
+
+                    return json_message  # Return the complete JSON string
 
             else:
                 pass
