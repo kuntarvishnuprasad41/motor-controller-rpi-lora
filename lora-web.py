@@ -16,6 +16,8 @@ target_address = 30  # Your target address
 def safe_receive(node):
     try:
         received_data = node.receive()
+        print(f"Received data: {received_data}") # Debugging: Print received data
+
         return received_data
     except IndexError:
         print("IndexError caught in safe_receive. No data or incomplete data.")
