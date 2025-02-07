@@ -1,10 +1,10 @@
-
+from flask import Flask, request, jsonify, render_template
+import sys
 import sx126x
 import time
 import json
 import threading
 import sqlite3
-from flask import Flask, request, jsonify, render_template
 
 
 
@@ -133,19 +133,7 @@ def process_received_data(node, received_data):
         print(f"Received data: {received_data}")
         return None
 
-@app.route('/receive_data', methods=['GET'])
-def receive_data():
-    with lora_lock: # Protect access to data_available
-        data_available.wait(timeout=1)  # Wait for signal, releases lock while waiting
-        with sqlite3.connect(DATABASE) as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT message FROM lora_messages")
-            data_to_send = [row[0] for row in cursor.fetchall()]
 
-            # Clear the table after fetching (important!)
-            cursor.execute("DELETE FROM lora_messages")
-            conn.commit()
-        return jsonify(data_to_send)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
