@@ -74,7 +74,7 @@ def handle_command():
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
     global received_data_queue
-    data_to_send =
+    data_to_send =[]
 
     for _ in range(5):  # Try a few times to receive data
         received = safe_receive(node)
@@ -88,7 +88,7 @@ def receive_data():
         if data_to_send:
             received_data_queue.extend(data_to_send)
             data_to_send = received_data_queue[:]
-            received_data_queue = # clear the queue
+            received_data_queue = [] # clear the queue
             return jsonify(data_to_send)
         else:
             return jsonify()  # Return empty if nothing received
