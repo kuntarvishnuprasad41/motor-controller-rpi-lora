@@ -22,7 +22,7 @@ def safe_receive(node):
         return None
 
 # Threading for receiving data (non-blocking)
-received_data_queue =
+received_data_queue = []
 queue_lock = threading.Lock()  # Create a thread lock
 
 def receive_data_thread():
