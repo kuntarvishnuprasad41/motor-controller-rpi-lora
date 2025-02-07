@@ -319,57 +319,54 @@ class sx126x:
             time.sleep(0.5)
             r_buff = self.ser.read(self.ser.inWaiting())
 
+            # Check if the buffer has enough bytes (address + message + RSSI)
+            if len(r_buff) < 3:
+                print("Incomplete packet")
+                return None
+
+            # Extract node address (first two bytes)
             node_address = (r_buff[0] << 8) + r_buff[1]
-            print(f"receive message from address \033[1;32m{node_address} node\033[0m {r_buff[2:]}")
+            print(f"Receive message from address \033[1;32m{node_address} node\033[0m")
+
+            # Extract RSSI (last byte)
+            rssi_byte = r_buff[-1]
+            rssi = 256 - rssi_byte
+            print(f"Packet RSSI value: -{rssi}dBm")
+
+            # Extract message (bytes between address and RSSI)
+            message_bytes = r_buff[2:-1]
 
             try:
-                message_str = r_buff.decode('utf-8')
+                # Decode the message part (excluding address and RSSI)
+                message_str = message_bytes.decode('utf-8')
             except UnicodeDecodeError as e:
                 print(f"Error decoding message: {e}")
-                print(f"Raw data: {r_buff}")
-                return None  # Return None to indicate an error
+                print(f"Raw message data: {message_bytes}")
+                return None
 
+            # Extract JSON from the message string
             try:
-                start = message_str.find('{')  # Find the first opening curly brace
-                end = message_str.rfind('}') + 1 # Find the last closing curly brace
+                start = message_str.find('{')
+                end = message_str.rfind('}') + 1
                 if start != -1 and end != -1:
                     json_message = message_str[start:end]
                 else:
-                    print("Message format error, no JSON found")
-                    print("Raw data: " + message_str)
-                    return message_str # Return None to indicate an error
-
+                    print("No JSON found in message")
+                    print(f"Message content: {message_str}")
+                    return None
             except Exception as e:
                 print(f"Error extracting JSON: {e}")
-                print("Raw data: " + message_str)
-                return None # Return None to indicate an error
+                return None
 
+            # Logging and additional processing
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            print(f"@ [{current_time}] ")
-            rssi = 256 - r_buff[-1:][0]
-            print(f"the packet rssi value: -{rssi}dBm")
-            self.get_channel_rssi()
-            e = datetime.datetime.now()
+            print(f"@ [{current_time}] Received: {json_message}")
+
             with open("g.txt", "a") as f:
+                e = datetime.datetime.now()
                 f.write(f"Packet RSSI: -{rssi}dBm Current date and time = {e}\n")
-            print(f"@ [{rssi}]dBm ")
 
-            
-
-            if self.rssi:
-                    rssi = 256 - r_buff[-1:][0]
-                    print(f"the packet rssi value: -{rssi}dBm")
-                    self.get_channel_rssi()
-                    e = datetime.datetime.now()
-                    with open("g.txt", "a") as f:
-                        f.write(f"Packet RSSI: -{rssi}dBm Current date and time = {e}\n")
-            print(f"receive    {json_message} ")
-            
-            return json_message  # Return the complete JSON string
-
-            # else:
-            #     pass
-                #print('\x1b[2A',end='\r')
+        return json_message
     
 
              
