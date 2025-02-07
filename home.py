@@ -42,7 +42,7 @@ try:
         node.receive()
         time.sleep(0.1)
 
-        if select.select([sys.stdin],[],[], 0) == ([sys.stdin],[],):
+        if sys.stdin in select.select([sys.stdin],[],[], 0):
             c = sys.stdin.read(1)
             print(f"Received: {c}")
 
