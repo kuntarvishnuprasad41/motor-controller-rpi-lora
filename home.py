@@ -42,7 +42,7 @@ try:
         node.receive()
         time.sleep(0.1)
 
-        if select.select([sys.stdin],,, 0) == ([sys.stdin],,):
+        if select.select([sys.stdin],[],[], 0) == ([sys.stdin],[],):
             c = sys.stdin.read(1)
 
             if c == '\x1b':  # Esc key
