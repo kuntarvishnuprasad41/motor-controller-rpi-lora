@@ -27,17 +27,7 @@ def safe_receive(node, max_retries=3):  # Reduced retries
                 received_data = node.receivetemp()
                 if received_data!=None:
                     print(f"Received in lora: {received_data}")
-                # if received_data:
-                #     try:
-                #         received_json = json.loads(received_data)
-                #         received_address = received_json.get('address')
-                #         if received_address != target_address:
-                #             print("Message discarded: Wrong address")
-                #             return None
-                #         return received_data
-                #     except json.JSONDecodeError as e:
-                #         print(f"JSON decode error: {e}. Raw: {received_data}")
-                #         return None
+                    return received_data
                 time.sleep(0.01)  # Shorter delay
             except Exception as e:
                 print(f"Receive error: {e}")
