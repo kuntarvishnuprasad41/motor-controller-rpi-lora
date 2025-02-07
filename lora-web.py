@@ -18,6 +18,9 @@ lora_lock = threading.Lock()
 def safe_receive(node, max_retries=3):  # Reduced retries
     for _ in range(max_retries):
         with lora_lock:  # Acquire lock for LoRa receive
+            received_data = node.receive()
+            if received_data!=None:
+                print(f"Received in lora: {received_data}")
             try:
                 received_data = node.receive()
                 if received_data!=None:
