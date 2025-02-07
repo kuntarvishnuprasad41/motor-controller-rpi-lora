@@ -29,9 +29,9 @@ def safe_receive(node, max_retries=5):
                     received_address = received_json.get('address')
                     print(f"Received message from address: {received_address}")
 
-                    if received_address!= target_address:
-                        print("Message discarded: Wrong address")
-                        return None
+                    # if received_address!= target_address:
+                    #     print("Message discarded: Wrong address")
+                    #     return None
 
                     return received_data
 
