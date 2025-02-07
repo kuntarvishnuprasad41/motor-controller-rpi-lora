@@ -125,7 +125,7 @@ def receive_data():
 
         # Now, atomically get and clear the queue.
         data_to_send = received_data_queue[:]  # Create a copy
-        received_data_queue.clear()          # Clear the original queue
+        # received_data_queue.clear()          # Clear the original queue
 
     processed_data = []
     for item in data_to_send:
