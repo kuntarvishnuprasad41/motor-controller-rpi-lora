@@ -20,7 +20,8 @@ def safe_receive(node, max_retries=3):  # Reduced retries
         with lora_lock:  # Acquire lock for LoRa receive
             try:
                 received_data = node.receive()
-                print(f"Received in lora: {received_data}")
+                if received_data!=None:
+                    print(f"Received in lora: {received_data}")
                 if received_data:
                     try:
                         received_json = json.loads(received_data)
