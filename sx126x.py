@@ -321,13 +321,18 @@ class sx126x:
             self.ser.flushInput()  # Flush input buffer
             r_buff = self.ser.read(self.ser.inWaiting())
 
-            if not r_buff:  # Check for empty read
-                print("Warning: Nothing read from serial buffer.")
-                return None
+        
 
-            if len(r_buff) < 2:  # Check for minimum length (address)
-                print(f"Warning: Received data too short ({len(r_buff)} bytes). Raw: {r_buff}")
-                return None
+            # node_address = (r_buff[0] << 8) + r_buff[1]
+            # print(f"receive message from address \033[1;32m{node_address} node\033[0m {r_buff[2:]}")
+
+            # if not r_buff:  # Check for empty read
+            #     print("Warning: Nothing read from serial buffer.")
+            #     return None
+
+            # if len(r_buff) < 2:  # Check for minimum length (address)
+            #     print(f"Warning: Received data too short ({len(r_buff)} bytes). Raw: {r_buff}")
+            #     return None
 
             try:
                 node_address = (r_buff << 8) + r_buff  # Extract address
