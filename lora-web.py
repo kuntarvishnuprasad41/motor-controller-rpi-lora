@@ -15,31 +15,60 @@ target_address = 30  # Your target address
 # Lock for LoRa operations to prevent conflicts
 lora_lock = threading.Lock()
 
-def safe_receive(node, max_retries=3):  # Reduced retries
+def process_received_data(message_bytes, rssi=None):  # Helper function
+    try:
+        message_str = message_bytes.decode('utf-8', errors='ignore')
+        try:
+            json_message = json.loads(message_str)  # Directly parse JSON string
+            return json_message  # Return the JSON object
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error: {e}. Raw (decoded): {message_str}")
+            print(f"Raw bytes: {message_bytes}")
+            return None
+    except UnicodeDecodeError as e:
+        print(f"Decoding Error: {e}")
+        print(f"Raw bytes: {message_bytes}")
+        return None
+
+def safe_receive(node, max_retries=3):
     for _ in range(max_retries):
-        with lora_lock:  # Acquire lock for LoRa receive
-            # received_data = node.receive()
-            # if received_data!=None:
-            #     print(f"Received in lora: {received_data}")
+        with lora_lock:
             try:
-                received_data = node.receivetemp()
-                if received_data!=None:
-                    print(f"Received in lora: {received_data}")
-                if received_data:
-                    try:
-                        received_json = json.loads(received_data)
-                        received_address = received_json.get('address')
-                        if received_address != target_address:
-                            print("Message discarded: Wrong address")
-                            return None
-                        return received_data
-                    except json.JSONDecodeError as e:
-                        print(f"JSON decode error: {e}. Raw: {received_data}")
+                r_buff = node.receivetemp()  # Assuming node.receive() returns raw bytes or None
+                if r_buff:
+                    if len(r_buff) < 2: # Check for minimum length (address)
+                        print(f"Warning: Received data too short ({len(r_buff)} bytes). Raw: {r_buff}")
                         return None
-                time.sleep(0.01)  # Shorter delay
+
+                    try:
+                        node_address = (r_buff << 8) + r_buff  # Correct address extraction
+
+                        if node.rssi:
+                            if len(r_buff) < 3: # Check for minimum length (address + RSSI)
+                                print(f"Warning: Received data too short for RSSI ({len(r_buff)} bytes). Raw: {r_buff}")
+                                return None
+                            rssi = 256 - r_buff[-1]
+                            message_bytes = r_buff[2:-1] # Slice to remove address and RSSI
+                        else:
+                            message_bytes = r_buff[2:]
+                            rssi = None
+
+                        json_message = process_received_data(message_bytes, rssi) # Process data
+
+                        if json_message:  # Check if JSON was parsed successfully
+                            return json_message # Return the JSON object
+
+                    except IndexError:
+                        print("Error: Incomplete data received.")
+                        return None
+                    except Exception as e: # Catch any other error
+                        print(f"Receive function error: {e}")
+                        print(f"Raw buffer: {r_buff}") # Print the raw buffer for debugging
+                        return None
+
+                time.sleep(0.01)
             except Exception as e:
                 print(f"Receive error: {e}")
-                
                 return None
     return None
 
