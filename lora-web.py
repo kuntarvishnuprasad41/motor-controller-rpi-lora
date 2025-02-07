@@ -1,10 +1,10 @@
-from flask import Flask, request, jsonify, render_template
-import sys
+
 import sx126x
 import time
 import json
 import threading
 import sqlite3
+from flask import Flask, request, jsonify, render_template
 
 
 
