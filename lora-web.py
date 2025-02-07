@@ -121,7 +121,7 @@ def receive_data():
     global received_data_queue
     with data_received_condition:
         # Wait until the queue is NOT empty. This is the crucial change.
-        data_received_condition.wait_for(lambda: len(received_data_queue) > 0)
+        # data_received_condition.wait_for(lambda: len(received_data_queue) > 0)
 
         # Now, atomically get and clear the queue.
         data_to_send = received_data_queue[:]  # Create a copy
