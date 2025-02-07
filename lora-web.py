@@ -146,15 +146,6 @@ def receive_data():
             cursor.execute("DELETE FROM lora_messages")
             conn.commit()
         return jsonify(data_to_send)
-    
-# import threading
-# def lora_receiver_thread():
-#     while True: # Or some other condition to keep it running
-#         safe_receive(node) # Replace with your node object
-#         time.sleep(0.1) # Adjust as needed
-
-# receiver_thread = threading.Thread(target=lora_receiver_thread, daemon=True)
-# receiver_thread.start()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
