@@ -260,7 +260,7 @@ class sx126x:
             r_buff = self.ser.read(self.ser.inWaiting())
 
             print("receive message from address\033[1;32m %d node \033[0m"%((r_buff[0]<<8)+r_buff[1]),end='\r\n',flush = True)
-            print("message is "+str(r_buff[2]),end='\r\n')
+            print("message is "+str(r_buff[2:-1]),end='\r\n')
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             print(f"@ [{current_time}] ")
 
