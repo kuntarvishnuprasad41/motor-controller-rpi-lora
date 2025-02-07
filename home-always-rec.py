@@ -10,7 +10,11 @@ from threading import Timer
 old_settings = termios.tcgetattr(sys.stdin)
 tty.setcbreak(sys.stdin.fileno())
 
-node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=30, power=22, rssi=False)
+time.sleep(1)
+print("Enter curr node address (0-65535):")
+current_address = int(input())
+
+node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)
 
 def send_command(command, target_address):
     """Sends a command."""
