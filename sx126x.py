@@ -179,7 +179,7 @@ class sx126x:
                             if self.rssi and len(payload) > 0:
                                 rssi_value = -(256 - payload[-1])
                                 print(f"RSSI: {rssi_value} dBm")
-                                payload = payload[:-1]
+                                payload = payload
 
                             return payload
                         else:
