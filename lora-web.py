@@ -18,6 +18,7 @@ lora_lock = threading.Lock()
 def process_received_data(message_bytes, rssi=None):  # Helper function
     try:
         message_str = message_bytes.decode('utf-8', errors='ignore')
+        print(f"Received:inlr  {message_str}")
         try:
             json_message = json.loads(message_str)  # Directly parse JSON string
             return json_message  # Return the JSON object
