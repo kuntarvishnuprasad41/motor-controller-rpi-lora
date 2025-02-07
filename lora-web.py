@@ -5,6 +5,9 @@ import time
 import json
 import threading
 
+
+
+
 app = Flask(__name__)
 
 # Initialize your LoRa module
@@ -117,19 +120,20 @@ def process_received_data(node, received_data):
 def receive_data():
     global received_data_queue
     with data_received_condition:
-        if not received_data_queue:
-            data_received_condition.wait(0.5)
-        data_to_send = received_data_queue[:]
-        # received_data_queue = []
+        # Wait until the queue is NOT empty. This is the crucial change.
+        data_received_condition.wait_for(lambda: len(received_data_queue) > 0)
 
-    processed_data =  []# List to hold processed messages
+        # Now, atomically get and clear the queue.
+        data_to_send = received_data_queue[:]  # Create a copy
+        received_data_queue.clear()          # Clear the original queue
+
+    processed_data = []
     for item in data_to_send:
         received = item["data"]
-        processed_message = process_received_data(node, received) #Pass received data to the new function
-        print(f"Processed message: {processed_message}")
+        processed_message = process_received_data(node, received)
         if processed_message:
-            item["data"] = processed_message  # Update the queue with the processed JSON
-            processed_data.append(item) # Append the processed items
+            item["data"] = processed_message
+            processed_data.append(item)
 
     return jsonify(processed_data)
 
