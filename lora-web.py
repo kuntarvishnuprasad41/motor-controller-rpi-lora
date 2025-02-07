@@ -19,7 +19,7 @@ target_address = 30  # Your target address
 lora_lock = threading.Lock()
 
 received_data_queue = []
-# data_received_condition = threading.Condition()
+data_received_condition = threading.Condition()
 
 def safe_receive(node, max_retries=3):  # Reduced retries
     for _ in range(max_retries):
