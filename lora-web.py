@@ -30,6 +30,8 @@ def process_received_data(message_bytes, rssi=None):  # Helper function
         print(f"Decoding Error: {e}")
         print(f"Raw bytes: {message_bytes}")
         return None
+
+
 def safe_receive(node, max_retries=3):
     for _ in range(max_retries):
         with lora_lock:
@@ -41,8 +43,8 @@ def safe_receive(node, max_retries=3):
                         return None
 
                     try:
-                        # Correct address extraction: Convert bytes to integers first
-                        node_address = (r_buff << 8) + r_buff  # Corrected line
+                        # Correct address extraction: Apply << to individual bytes
+                        node_address = (r_buff << 8) + r_buff  
 
                         if node.rssi:
                             if len(r_buff) < 3:  # Check for minimum length (address + RSSI)
@@ -72,6 +74,8 @@ def safe_receive(node, max_retries=3):
                 print(f"Receive error: {e}")
                 return None
     return None
+
+
 received_data_queue = []
 data_received_condition = threading.Condition()
 
