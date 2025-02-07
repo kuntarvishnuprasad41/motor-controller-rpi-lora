@@ -48,12 +48,7 @@ try:
     time.sleep(1)
     print("Enter target node address (0-65535):")
     target_address = int(input())
-
-    # print("Press \033[1;32m1\033[0m to send Motor ON command")
-    # print("Press \033[1;32m2\033[0m to send Motor OFF command")
-    # print("Press \033[1;32m3\033[0m to send Motor STATUS request")
-    # print("Press \033[1;32mEsc\033[0m to exit")
-
+ 
     while True:
         received_data = node.receive()
         if received_data:
@@ -76,20 +71,7 @@ try:
             except json.JSONDecodeError:
                 print(f"Received non-JSON data: {received_data}")
 
-        # if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
-        #     c = sys.stdin.read(1)
-
-        #     if c == '\x1b':  # Esc key
-        #         break
-
-        #     if c == '1':
-        #         send_command("ON", target_address)
-        #     elif c == '2':
-        #         send_command("OFF", target_address)
-        #     elif c == '3':
-        #         send_command("STATUS", target_address)
-
-        #     sys.stdout.flush()
+        
 
         time.sleep(0.01)
 
