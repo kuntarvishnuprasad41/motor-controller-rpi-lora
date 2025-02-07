@@ -19,7 +19,7 @@ target_address = 30  # Your target address
 lora_lock = threading.Lock()
 
 received_data_queue = []
-data_received_condition = threading.Condition()
+# data_received_condition = threading.Condition()
 
 def safe_receive(node, max_retries=3):  # Reduced retries
     for _ in range(max_retries):
@@ -118,24 +118,27 @@ def process_received_data(node, received_data):
 
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
-    global received_data_queue
-    with data_received_condition:
+        
+    data_to_send = received_data_queue[:]  # Create a copy
+    return jsonify(data_to_send)
+    # global received_data_queue
+    # with data_received_condition:
         # Wait until the queue is NOT empty. This is the crucial change.
         # data_received_condition.wait_for(lambda: len(received_data_queue) > 0)
 
         # Now, atomically get and clear the queue.
-        data_to_send = received_data_queue[:]  # Create a copy
+        # data_to_send = received_data_queue[:]  # Create a copy
         # received_data_queue.clear()          # Clear the original queue
 
-    processed_data = []
-    for item in data_to_send:
-        received = item["data"]
-        processed_message = process_received_data(node, received)
-        if processed_message:
-            item["data"] = processed_message
-            processed_data.append(item)
+    # processed_data = []
+    # for item in data_to_send:
+    #     received = item["data"]
+    #     processed_message = process_received_data(node, received)
+    #     if processed_message:
+    #         item["data"] = processed_message
+    #         processed_data.append(item)
 
-    return jsonify(processed_data)
+    # return jsonify(processed_data)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
