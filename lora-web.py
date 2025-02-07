@@ -88,11 +88,12 @@ def handle_command():
 
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
+    global received_data_queue  # Explicitly declare that you're using the global variable
     with data_received_condition:
         if not received_data_queue:
             data_received_condition.wait(0.5)  # Shorter timeout
         data_to_send = received_data_queue[:]
-        received_data_queue = []
+        received_data_queue =[]  # Clear the queue *after* copying
     return jsonify(data_to_send)
 
 if __name__ == '__main__':
