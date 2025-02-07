@@ -91,49 +91,51 @@ def handle_command():
 
 
 
-def process_received_data(received_data):
-    if received_data is None:  # Handle None input
-        return None
+def process_received_data(node, received_data):
+     
     if isinstance(received_data, dict):
-        return received_data  # Return directly if already a dictionary
+        return received_data # no change needed
 
     try:
+        # Attempt to parse the JSON string. If it's already a dict, this will raise an exception.
         data_dict = json.loads(received_data)
-        return data_dict
+        return data_dict  # Return the dictionary if parsing is successful
+
     except json.JSONDecodeError as e:
         print(f"JSONDecodeError: {e}")
         print(f"Raw data: {received_data}")
-        return None
-    except TypeError as e:
+        return None  # Return None to indicate an error
+
+    except TypeError as e: # Handle cases where received_data might be None or not a string
         print(f"TypeError: {e}")
         print(f"Received data: {received_data}")
         return None
-    except Exception as e:
+
+    except Exception as e: # Catch any other unexpected errors
         print(f"An unexpected error occurred: {e}")
         print(f"Received data: {received_data}")
         return None
-
 
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
     global received_data_queue
     with data_received_condition:
+        # Wait until the queue is NOT empty. This is the crucial change.
         data_received_condition.wait_for(lambda: len(received_data_queue) > 0)
-        data_to_send = received_data_queue[:]
-        received_data_queue.clear()
+
+        # Now, atomically get and clear the queue.
+        data_to_send = received_data_queue[:]  # Create a copy
+        received_data_queue.clear()          # Clear the original queue
 
     processed_data = []
     for item in data_to_send:
         received = item["data"]
-        processed_message = process_received_data(received)  # Corrected: pass received directly
-        if processed_message is not None:  # Check for None result
+        processed_message = process_received_data(node, received)
+        if processed_message:
             item["data"] = processed_message
             processed_data.append(item)
-        else:
-            print("Warning: Discarding item due to processing error:", item) # Log and discard
 
     return jsonify(processed_data)
-    
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
