@@ -116,7 +116,7 @@ def process_received_data(node, received_data):
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
     with lora_lock:
-        data_available.wait(timeout=5)  # Wait for signal, release lock while waiting
+        data_available.wait(timeout=1)  # Wait for signal, release lock while waiting
         data_to_send = received_data_queue[:]
         return jsonify(data_to_send)
 
