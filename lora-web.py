@@ -22,16 +22,17 @@ def safe_receive(node):
         return None
 
 # Threading for receiving data (non-blocking)
-received_data_queue = []
+received_data_queue =
+queue_lock = threading.Lock()  # Create a thread lock
 
 def receive_data_thread():
     while True:
-        received = safe_receive(node) # Use the wrapper here
+        received = safe_receive(node)
         if received:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            received_data_queue.append({"data": received, "time": current_time})
+            with queue_lock:  # Acquire the lock before modifying the queue
+                received_data_queue.append({"data": received, "time": current_time})
         time.sleep(0.1)  # Check for data every 100ms
-
 
 receive_thread = threading.Thread(target=receive_data_thread, daemon=True)
 receive_thread.start()
@@ -73,24 +74,26 @@ def handle_command():
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
     global received_data_queue
-    data_to_send = []
+    data_to_send =
 
     for _ in range(5):  # Try a few times to receive data
-        received = safe_receive(node) # Use the wrapper here
+        received = safe_receive(node)
         if received:
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            data_to_send.append({"data": received, "time": current_time})
+            with queue_lock:  # Add lock here too
+                data_to_send.append({"data": received, "time": current_time})
         time.sleep(0.2)  # Small delay
 
-    if data_to_send:
-        received_data_queue.extend(data_to_send)
-        data_to_send = received_data_queue[:]
-        received_data_queue = []
-        return jsonify(data_to_send)
-    else:
-        return jsonify([]) # Return empty if nothing received
+    with queue_lock:  # Acquire the lock before clearing the queue
+        if data_to_send:
+            received_data_queue.extend(data_to_send)
+            data_to_send = received_data_queue[:]
+            received_data_queue = # clear the queue
+            return jsonify(data_to_send)
+        else:
+            return jsonify()  # Return empty if nothing received
 
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0') # host='0.0.0.0' for external access
+    app.run(debug=True, host='0.0.0.0')  # host='0.0.0.0' for external access
