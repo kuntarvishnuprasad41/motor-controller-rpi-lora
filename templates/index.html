@@ -1,81 +1,62 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
     <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>SX126x Controller</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #f4f4f4;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                margin: 0;
-            }
-
-            .container {
-                background: white;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-                text-align: center;
-            }
-
-            button {
-                padding: 10px 20px;
-                margin: 5px;
-                font-size: 16px;
-                cursor: pointer;
-                border: none;
-                border-radius: 5px;
-                background-color: #007bff;
-                color: white;
-            }
-
-            button:hover {
-                background-color: #0056b3;
-            }
-
-            #status {
-                margin-top: 20px;
-                font-size: 18px;
-            }
-        </style>
+        <title>LoRa Control</title>
     </head>
 
     <body>
-        <div class="container">
-            <h1>SX126x Controller</h1>
-            <button onclick="sendCommand('ON')">Motor ON</button>
-            <button onclick="sendCommand('OFF')">Motor OFF</button>
-            <button onclick="sendCommand('STATUS')">Motor STATUS</button>
-            <div id="status"></div>
-        </div>
+        <h1>LoRa Command Control</h1>
+        <button onclick="sendCommand('ON')">Motor ON</button>
+        <button onclick="sendCommand('OFF')">Motor OFF</button>
+        <button onclick="sendCommand('STATUS')">Motor Status</button>
+
+        <h2>Received Data:</h2>
+        <div id="receivedData"></div>
 
         <script>
-            async function sendCommand(command) {
-                const response = await fetch('/send', {
+            function sendCommand(command) {
+                fetch('/send_command', {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json',
+                        'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ command: command, target_address: 30 }),
-                });
-                const result = await response.json();
-                document.getElementById('status').innerText = result.message;
+                    body: JSON.stringify({ command: command })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert(data.message);
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert("An error occurred.");
+                    });
             }
 
-            // Poll for received data
-            setInterval(async () => {
-                const response = await fetch('/receive');
-                const result = await response.json();
-                if (result.data) {
-                    document.getElementById('status').innerText = `Received: ${result.data} at ${result.time}`;
-                }
-            }, 1000); // Check every second
+            function fetchReceivedData() {
+                fetch('/receive_data')
+                    .then(response => response.json())
+                    .then(data => {
+                        const receivedDataDiv = document.getElementById('receivedData');
+                        receivedDataDiv.innerHTML = ""; // Clear previous data
+
+                        if (data.length > 0) {
+                            data.forEach(item => {
+                                const dataItem = document.createElement('p');
+                                dataItem.textContent = `${item.data} (Time: ${item.time})`;
+                                receivedDataDiv.appendChild(dataItem);
+                            });
+                        } else {
+                            receivedDataDiv.textContent = "No data received yet.";
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching data:', error);
+                    });
+            }
+
+            setInterval(fetchReceivedData, 1000); // Poll for data every second
+
         </script>
     </body>
 
