@@ -318,8 +318,10 @@ class sx126x:
             time.sleep(0.5)
             r_buff = self.ser.read(self.ser.inWaiting())
 
-            node_address = r_buff[1]
+            node_address = (r_buff[0] << 8) + r_buff[1]
             print(f"receive message from address \033[1;32m{node_address} node\033[0m {r_buff[2:]}")
+
+            return r_buff
 
             try:
                 message_str = r_buff.decode('utf-8')
