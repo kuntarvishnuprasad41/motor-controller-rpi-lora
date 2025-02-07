@@ -4,11 +4,28 @@ import sx126x
 import time
 import json
 import threading
+import sqlite3
 
 
 
 
 app = Flask(__name__)
+
+
+DATABASE = 'lora_data.db'
+def create_table():
+    conn = sqlite3.connect(DATABASE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS lora_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+create_table() 
 
 # Initialize your LoRa module
 current_address = 0
@@ -25,13 +42,16 @@ data_available = threading.Condition(lora_lock)  # Condition variable
 
 def safe_receive(node, max_retries=3):
     for _ in range(max_retries):
-        with lora_lock:
+        with lora_lock:  # Lock only for the actual receive operation
             try:
-                received_data = node.receivetemp()
+                received_data = node.receivetemp()  # Your LoRa receive function
                 if received_data:
                     print(f"Received in lora: {received_data}")
-                    received_data_queue.insert(0, received_data)
-                    data_available.notify()  # Signal new data
+                    with sqlite3.connect(DATABASE) as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("INSERT INTO lora_messages (message) VALUES (?)", (received_data,))
+                        conn.commit()
+                    data_available.notify() # Signal new data in DB
                     return received_data
                 time.sleep(0.01)
             except Exception as e:
@@ -115,10 +135,26 @@ def process_received_data(node, received_data):
 
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
-    with lora_lock:
-        data_available.wait(timeout=1)  # Wait for signal, release lock while waiting
-        data_to_send = received_data_queue[:]
+    with lora_lock: # Protect access to data_available
+        data_available.wait(timeout=1)  # Wait for signal, releases lock while waiting
+        with sqlite3.connect(DATABASE) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT message FROM lora_messages")
+            data_to_send = [row[0] for row in cursor.fetchall()]
+
+            # Clear the table after fetching (important!)
+            cursor.execute("DELETE FROM lora_messages")
+            conn.commit()
         return jsonify(data_to_send)
+    
+# import threading
+# def lora_receiver_thread():
+#     while True: # Or some other condition to keep it running
+#         safe_receive(node) # Replace with your node object
+#         time.sleep(0.1) # Adjust as needed
+
+# receiver_thread = threading.Thread(target=lora_receiver_thread, daemon=True)
+# receiver_thread.start()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
