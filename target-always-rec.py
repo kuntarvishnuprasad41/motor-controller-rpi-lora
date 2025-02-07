@@ -68,8 +68,11 @@ try:
                     print(f"[{current_time}] Received command: {command}")
 
                     if command == "ON":
-                        GPIO.output(23, GPIO.HIGH)  # Turn ON relay 23
                         GPIO.output(24, GPIO.LOW)   # Turn OFF relay 24 (ensure only one is on)
+                        GPIO.output(23, GPIO.HIGH)  # Turn ON relay 23
+                        time.sleep(0.5)
+                        
+                        GPIO.output(23, GPIO.HIGH)  # Turn ON relay 23
                         send_reply("Motor on", target_address)  # Send "Motor on" message
                     elif command == "OFF":
                         GPIO.output(23, GPIO.LOW)   # Turn OFF relay 23
