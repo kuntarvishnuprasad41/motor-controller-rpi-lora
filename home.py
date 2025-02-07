@@ -55,7 +55,7 @@ try:
 
     while True:
         if not receiving_mode: #only check for input when not in receiving mode
-            if select.select([sys.stdin],,, 0) == ([sys.stdin],,):
+            if select.select([sys.stdin], [], [], 0) == ([sys.stdin], [], []):
                 c = sys.stdin.read(1)
 
                 if c == '\x1b':  # Esc key
