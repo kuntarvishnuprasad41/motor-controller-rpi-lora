@@ -20,9 +20,12 @@ def safe_receive(node):
     except IndexError:
         print("IndexError caught in safe_receive. No data or incomplete data.")
         return None
+    except Exception as e:  # Catch other potential errors
+        print(f"An unexpected error occurred in safe_receive: {e}")
+        return None
 
 # Threading for receiving data (non-blocking)
-received_data_queue = []
+received_data_queue =[]
 queue_lock = threading.Lock()  # Create a thread lock
 
 def receive_data_thread():
@@ -32,7 +35,8 @@ def receive_data_thread():
             current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             with queue_lock:  # Acquire the lock before modifying the queue
                 received_data_queue.append({"data": received, "time": current_time})
-        time.sleep(0.1)  # Check for data every 100ms
+            #print(f"Received data: {received}") # Debugging: Print received data
+        time.sleep(0.05)  # Reduce delay for faster checks (experiment)
 
 receive_thread = threading.Thread(target=receive_data_thread, daemon=True)
 receive_thread.start()
@@ -76,24 +80,11 @@ def receive_data():
     global received_data_queue
     data_to_send =[]
 
-    for _ in range(5):  # Try a few times to receive data
-        received = safe_receive(node)
-        if received:
-            current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            with queue_lock:  # Add lock here too
-                data_to_send.append({"data": received, "time": current_time})
-        time.sleep(0.2)  # Small delay
+    with queue_lock:  # Lock during data retrieval and clearing
+        data_to_send = received_data_queue[:]
+        received_data_queue = [] # Clear the queue after sending data
 
-    with queue_lock:  # Acquire the lock before clearing the queue
-        if data_to_send:
-            received_data_queue.extend(data_to_send)
-            data_to_send = received_data_queue[:]
-            received_data_queue = [] # clear the queue
-            return jsonify(data_to_send)
-        else:
-            return jsonify()  # Return empty if nothing received
-
-
+    return jsonify(data_to_send)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')  # host='0.0.0.0' for external access
