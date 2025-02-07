@@ -30,41 +30,41 @@ def process_received_data(message_bytes, rssi=None):  # Helper function
         print(f"Decoding Error: {e}")
         print(f"Raw bytes: {message_bytes}")
         return None
-
 def safe_receive(node, max_retries=3):
     for _ in range(max_retries):
         with lora_lock:
             try:
-                r_buff = node.receivetemp()  # Assuming node.receive() returns raw bytes or None
+                r_buff = node.receive()
                 if r_buff:
-                    if len(r_buff) < 2: # Check for minimum length (address)
+                    if len(r_buff) < 2:  # Check for minimum length (address)
                         print(f"Warning: Received data too short ({len(r_buff)} bytes). Raw: {r_buff}")
                         return None
 
                     try:
-                        node_address = (r_buff << 8) + r_buff  # Correct address extraction
+                        # Correct address extraction: Convert bytes to integers first
+                        node_address = (int(r_buff) << 8) + int(r_buff)
 
                         if node.rssi:
-                            if len(r_buff) < 3: # Check for minimum length (address + RSSI)
+                            if len(r_buff) < 3:  # Check for minimum length (address + RSSI)
                                 print(f"Warning: Received data too short for RSSI ({len(r_buff)} bytes). Raw: {r_buff}")
                                 return None
                             rssi = 256 - r_buff[-1]
-                            message_bytes = r_buff[2:-1] # Slice to remove address and RSSI
+                            message_bytes = r_buff[2:-1]  # Slice to remove address and RSSI
                         else:
                             message_bytes = r_buff[2:]
                             rssi = None
 
-                        json_message = process_received_data(message_bytes, rssi) # Process data
+                        json_message = process_received_data(message_bytes, rssi)
 
                         if json_message:  # Check if JSON was parsed successfully
-                            return json_message # Return the JSON object
+                            return json_message
 
                     except IndexError:
                         print("Error: Incomplete data received.")
                         return None
-                    except Exception as e: # Catch any other error
+                    except Exception as e:  # Catch any other error
                         print(f"Receive function error: {e}")
-                        print(f"Raw buffer: {r_buff}") # Print the raw buffer for debugging
+                        print(f"Raw buffer: {r_buff}")  # Print the raw buffer for debugging
                         return None
 
                 time.sleep(0.01)
@@ -72,7 +72,6 @@ def safe_receive(node, max_retries=3):
                 print(f"Receive error: {e}")
                 return None
     return None
-
 received_data_queue = []
 data_received_condition = threading.Condition()
 
