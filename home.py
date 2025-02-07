@@ -9,19 +9,28 @@ import json
 old_settings = termios.tcgetattr(sys.stdin)
 tty.setcbreak(sys.stdin.fileno())
 
-node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=0, power=22, rssi=False)
+node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=30, power=22, rssi=False)  # Initialize with your own address
 
-def send_command(command):
-    """Sends a command with a timestamp."""
+def send_command(command, target_address):
+    """Sends a command with a timestamp to a specific address."""
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
     message = {"command": command, "time": timestamp}
     json_message = json.dumps(message)
+
+    # Temporarily change the node's address to the target address
+    original_address = node.addr
+    node.addr_temp = node.addr #store the original address
+    node.set(node.freq, target_address, node.power, node.rssi) #set the receiver address
     node.send(json_message)
+    node.set(node.freq, original_address, node.power, node.rssi) #set back to the original address
     time.sleep(0.2)
 
 
 try:
     time.sleep(1)
+    print("Enter target node address (0-65535):")
+    target_address = int(input())  # Get target address from the user
+
     print("Press \033[1;32m1\033[0m to send Motor ON command")
     print("Press \033[1;32m2\033[0m to send Motor OFF command")
     print("Press \033[1;32m3\033[0m to send Motor STATUS request")
@@ -35,23 +44,22 @@ try:
                 break
 
             if c == '1':
-                send_command("ON")
-                print("Motor ON command sent.")
+                send_command("ON", target_address)
+                print(f"Motor ON command sent to node {target_address}.")
             elif c == '2':
-                send_command("OFF")
-                print("Motor OFF command sent.")
+                send_command("OFF", target_address)
+                print(f"Motor OFF command sent to node {target_address}.")
             elif c == '3':
-                send_command("STATUS")
-                print("Motor STATUS request sent.")
+                send_command("STATUS", target_address)
+                print(f"Motor STATUS request sent to node {target_address}.")
 
             sys.stdout.flush()
 
-        node.receive()  # Call the existing receive function
-        # The sx126x library you provided *prints* the received data.
-        # It doesn't have a get_received_data() method.
-        # So, we don't need to try to get and parse data separately.
-        # The received data will be printed by the node.receive() function.
+        node.receive()  # Call the existing receive function (prints the received data)
 
+
+except ValueError:
+    print("Invalid target address. Please enter a number between 0 and 65535.")
 except Exception as e:
     print(f"An error occurred: {e}")
 finally:
