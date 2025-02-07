@@ -123,6 +123,7 @@ def receive_data():
     for item in data_to_send:
         received = item["data"]
         processed_message = process_received_data(node, received) #Pass received data to the new function
+        print(f"Processed message: {processed_message}")
         if processed_message:
             item["data"] = processed_message  # Update the queue with the processed JSON
             processed_data.append(item) # Append the processed items
