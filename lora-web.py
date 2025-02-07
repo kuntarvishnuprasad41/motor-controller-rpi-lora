@@ -17,6 +17,7 @@ def safe_receive(node, max_retries=5):
     for _ in range(max_retries):
         try:
             received_data = node.receive()
+            print(f"Received data:111111111111111 {received_data}")
             if received_data:
                 try:
                     # Check if the received data is already a string
@@ -29,9 +30,9 @@ def safe_receive(node, max_retries=5):
                     received_address = received_json.get('address')
                     print(f"Received message from address: {received_address}")
 
-                    # if received_address!= target_address:
-                    #     print("Message discarded: Wrong address")
-                    #     return None
+                    if received_address!= target_address:
+                        print("Message discarded: Wrong address")
+                        return None
 
                     return received_data
 
