@@ -42,7 +42,7 @@ def safe_receive(node, max_retries=3):
 
                     try:
                         # Correct address extraction: Convert bytes to integers first
-                        node_address = (int(r_buff) << 8) + int(r_buff)
+                        node_address = (r_buff << 8) + r_buff  # Corrected line
 
                         if node.rssi:
                             if len(r_buff) < 3:  # Check for minimum length (address + RSSI)
