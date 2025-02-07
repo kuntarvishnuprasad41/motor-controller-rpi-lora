@@ -120,7 +120,7 @@ def receive_data():
         if not received_data_queue:
             data_received_condition.wait(0.5)
         data_to_send = received_data_queue[:]
-        received_data_queue = []
+        # received_data_queue = []
 
     processed_data =  []# List to hold processed messages
     for item in data_to_send:
