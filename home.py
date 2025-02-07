@@ -46,17 +46,13 @@ try:
 
             sys.stdout.flush()
 
-        node.receive()
-        received_data = node.get_received_data()
-        if received_data:
-            try:
-                received_message = json.loads(received_data)
-                print("Received:", received_message)
-            except json.JSONDecodeError:
-                print("Received non-JSON data:", received_data)
-
+        node.receive()  # Call the existing receive function
+        # The sx126x library you provided *prints* the received data.
+        # It doesn't have a get_received_data() method.
+        # So, we don't need to try to get and parse data separately.
+        # The received data will be printed by the node.receive() function.
 
 except Exception as e:
-    print(f"An error occurred: {e}")  # Print any exceptions
+    print(f"An error occurred: {e}")
 finally:
-    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)  # Restore terminal settings
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
