@@ -16,33 +16,37 @@ target_address = 30  # Your target address
 def safe_receive(node, max_retries=3):
     for _ in range(max_retries):
         try:
-            r_buff = node.read_buffer()  # Or however you get the raw buffer
-            if not r_buff or len(r_buff) < 2:  # Check for empty or short buffer
-                time.sleep(0.02)  # Small delay before retrying
-                continue  # Retry if no data
+            received_data = node.receive()  # Receive data first
+            if received_data:  # Check if data was received (not None)
+                try:
+                    # Attempt to decode to get the address (if it's part of the message)
+                    decoded_data = received_data.decode('utf-8')
+                    received_json = json.loads(decoded_data) # Parse JSON to access the address
+                    received_address = received_json.get('address') # Assumes 'address' key in JSON
+                    print(f"Received message (potentially) from address: {received_address}")
 
-            node_address = (r_buff << 8) + r_buff # Extract address. Corrected.
-            print(f"Received message from address: {node_address}")  # Debugging
+                    if received_address!= target_address and received_address is not None:  # Filter by address
+                        print("Message discarded: Wrong address")
+                        return None  # Discard if not for us
+                    return received_data # If it is for us, return
 
-            if node_address!= target_address:  # Filter by address
-                print("Message discarded: Wrong address")
-                return None  # Discard if not for us
-
-            received_data = node.receive()  # Now call receive only if the address matches
-            return received_data  # Success!
-
-        except IndexError:
+                except (UnicodeDecodeError, json.JSONDecodeError) as e:
+                    print(f"Error decoding or parsing JSON: {e}. Raw data: {received_data}")
+                    return None # Discard if JSON format is incorrect.
+            time.sleep(0.02)  # Small delay before retrying
+            continue # Retry if no data
+        except IndexError:  # Keep this for general receive errors
             print("IndexError caught in safe_receive. No data or incomplete data.")
             time.sleep(0.02)  # Small delay before retrying
             continue  # Retry
-        except Exception as e:  # Catch other potential errors
+        except Exception as e:
             print(f"An unexpected error occurred in safe_receive: {e}")
             return None
     return None  # Return None if all retries fail
 
 
 # Threading for receiving data (non-blocking)
-received_data_queue = []
+received_data_queue =[]
 queue_lock = threading.Lock()  # Create a thread lock
 
 def receive_data_thread():
@@ -60,7 +64,7 @@ receive_thread.start()
 def send_command(command):
     try:
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        message = {"command": command, "time": timestamp}
+        message = {"command": command, "time": timestamp, "address": current_address} # Include the address
         json_message = json.dumps(message)
 
         original_address = node.addr
@@ -94,7 +98,7 @@ def handle_command():
 @app.route('/receive_data', methods=['GET'])
 def receive_data():
     global received_data_queue
-    data_to_send =[]
+    data_to_send = []
 
     with queue_lock:
         for item in received_data_queue:  # Iterate through each item
@@ -105,7 +109,7 @@ def receive_data():
                 print(f"Decoding error: {e}. Raw data: {item['data']}")
                 data_to_send.append({"data": "Decoding Error", "time": item['time']})  # Or handle differently
 
-        received_data_queue = [] # Clear the queue *after* processing
+        received_data_queue =  [] # Clear the queue *after* processing
 
     return jsonify(data_to_send)
 
