@@ -1,9 +1,8 @@
-// receiver.js (Node.js) - Using pinctrl
+// receiver.js (Node.js)
 
 const SerialPort = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
 const { Buffer } = require('node:buffer');
-const { execSync } = require('child_process'); // For running shell commands
 
 // --- Configuration ---
 const serialPortPath = "/dev/ttyS0"; //  Serial port
@@ -12,10 +11,6 @@ const targetAddress = 2;          //  Sender address (for replies)
 const frequency = 433;           //  Frequency
 const power = 22;                //  Power
 const enableRssi = false;        //  RSSI reporting
-
-// --- GPIO Setup ---
-const relayOnPin = 23;  // GPIO pin for ON relay
-const relayOffPin = 24; // GPIO pin for OFF relay
 
 // --- Helper Functions ---
 function setGpioOutput(pin) {
@@ -44,7 +39,6 @@ function setGpioLow(pin) {
         console.error(`Error setting GPIO ${pin} LOW:`, error.message);
     }
 }
-
 // --- sx126x Class ---
 class sx126x {
     constructor(serial_num, freq, addr, power, rssi) {
@@ -183,7 +177,7 @@ class sx126x {
             64: this.SX126X_PACKAGE_SIZE_64_BYTE,
             32: this.SX126X_PACKAGE_SIZE_32_BYTE
         };
-        return buffer_size_c[bufferSize] !== undefined ? buffer_size_c[bufferSize] : null;
+        return buffer_size_c[bufferSize] !== undefined ? power_c[power] : null;
     }
 
     get_settings() {
@@ -206,7 +200,7 @@ class sx126x {
             console.log("Raw data from serial:", data);
 
             try {
-                const buffer = Buffer.from(data);
+                const buffer = Buffer.from(data)
                 if (buffer.length < 3) {
                     console.log("Incomplete packet");
                     return;
@@ -221,15 +215,17 @@ class sx126x {
 
                 if (start !== -1 && end !== -1) {
                     json_message = message_str.substring(start, end);
-                    console.log(json_message);
+                    console.log(json_message)
                     const time = new Date().toISOString();
                     callback({ time, message: json_message, rssi, node_address }); // Pass to callback
 
-                } else {
-                    console.log("No JSON found in message");
-                    console.log(message_str);
                 }
-            } catch (error) {
+                else {
+                    console.log("No JSON found in message");
+                    console.log(message_str)
+                }
+            }
+            catch (error) {
                 console.error("Error processing received data:", error);
             }
         });
@@ -241,17 +237,10 @@ class sx126x {
 }
 
 // --- Main Program Logic ---
-
-// Initialize GPIO pins as outputs
 setGpioOutput(relayOnPin);
 setGpioOutput(relayOffPin);
 
-// Set initial state to LOW (off)
-setGpioLow(relayOnPin);
-setGpioLow(relayOffPin);
-
 const node = new sx126x(serialPortPath, frequency, currentAddress, power, enableRssi);
-
 function sendReply(message, targetAddress) {
     const timestamp = new Date().toISOString();
     const replyMessage = { reply: message, time: timestamp };
