@@ -1,20 +1,23 @@
-// server.js (Node.js with Express and WebSocket)
+// sender.js (Node.js)
 
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
 const SerialPort = require('serialport');
-const { ReadlineParser } = require('@serialport/parser-readline');
-const { DelimiterParser } = require('@serialport/parser-delimiter'); //Probably don't need this.
 const { Buffer } = require('node:buffer');
 
-//  sx126x class (Node.js compatible)
+// --- Configuration ---
+const serialPortPath = "/dev/ttyS0"; // Serial port
+const currentAddress = 2;           // Sender address
+const targetAddress = 30;            // Receiver address
+const frequency = 433;            // Frequency
+const power = 22;                 // Power
+const enableRssi = false;         // RSSI reporting
+
+// --- sx126x Class ---
 class sx126x {
     constructor(serial_num, freq, addr, power, rssi) {
         this.M0 = 22;
         this.M1 = 27;
         this.cfg_reg = [0xC2, 0x00, 0x09, 0x00, 0x00, 0x00, 0x62, 0x00, 0x17, 0x00, 0x00, 0x00];
-        this.get_reg = Buffer.alloc(12); // Use Buffer in Node.js
+        this.get_reg = Buffer.alloc(12);
         this.rssi = rssi;
         this.addr = addr;
         this.freq = freq;
@@ -52,9 +55,6 @@ class sx126x {
         this.SX126X_Power_13dBm = 0x02;
         this.SX126X_Power_10dBm = 0x03;
 
-        // Mock GPIO for non-Raspberry Pi environments (for testing)
-        this.M0_gpio = { writeSync: (value) => console.log(`M0 set to ${value}`) };
-        this.M1_gpio = { writeSync: (value) => console.log(`M1 set to ${value}`) };
         // Setup serial port
         this.port = new SerialPort.SerialPort({
             path: serial_num,
@@ -64,19 +64,16 @@ class sx126x {
             parity: 'none',
         });
 
-        this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\r\n' }));
-        this.set(freq, addr, power, rssi);
-
         this.port.on('error', function (err) {
             console.error('SerialPort Error: ', err.message);
         });
+
+        this.set(freq, addr, power, rssi);
     }
+
     set(freq, addr, power, rssi, air_speed = 2400, net_id = 0, buffer_size = 240, crypt = 0, relay = false, lbt = false, wor = false) {
         this.send_to = addr;
         this.addr = addr;
-        // We should pull up the M1 pin when sets the module
-        this.M0_gpio.writeSync(0);
-        this.M1_gpio.writeSync(1);
 
         setTimeout(() => {
             let low_addr = addr & 0xff;
@@ -106,19 +103,14 @@ class sx126x {
             this.cfg_reg[10] = h_crypt;
             this.cfg_reg[11] = l_crypt;
 
-            // this.port.flush();
-            //console.log(this.cfg_reg)
             for (let i = 0; i < 2; i++) {
                 this.port.write(Buffer.from(this.cfg_reg));
-
             }
-            this.M0_gpio.writeSync(0);
-            this.M1_gpio.writeSync(0);
-        }, 100); // Delay for GPIO setting
+        }, 100);
     }
 
     air_speed_cal(airSpeed) {
-        const air_speed_c = { // Corrected:  Define as a JavaScript object
+        const air_speed_c = {
             1200: this.SX126X_AIR_SPEED_1200bps,
             2400: this.SX126X_AIR_SPEED_2400bps,
             4800: this.SX126X_AIR_SPEED_4800bps,
@@ -127,141 +119,60 @@ class sx126x {
             38400: this.SX126X_AIR_SPEED_38400bps,
             62500: this.SX126X_AIR_SPEED_62500bps
         };
-        return air_speed_c[airSpeed] !== undefined ? air_speed_c[airSpeed] : null; //Corrected: Use bracket notation for object access
+        return air_speed_c[airSpeed] !== undefined ? air_speed_c[airSpeed] : null;
     }
 
     power_cal(power) {
-        const power_c = { // Corrected: Define as JavaScript object
+        const power_c = {
             22: this.SX126X_Power_22dBm,
             17: this.SX126X_Power_17dBm,
             13: this.SX126X_Power_13dBm,
             10: this.SX126X_Power_10dBm
         };
-        return power_c[power] !== undefined ? power_c[power] : null; // Corrected: Use bracket notation
+        return power_c[power] !== undefined ? power_c[power] : null;
     }
 
     buffer_size_cal(bufferSize) {
-        const buffer_size_c = { // Corrected: Define as JavaScript object
+        const buffer_size_c = {
             240: this.SX126X_PACKAGE_SIZE_240_BYTE,
             128: this.SX126X_PACKAGE_SIZE_128_BYTE,
             64: this.SX126X_PACKAGE_SIZE_64_BYTE,
             32: this.SX126X_PACKAGE_SIZE_32_BYTE
         };
-        return buffer_size_c[bufferSize] !== undefined ? buffer_size_c[bufferSize] : null; // Corrected: Use bracket notation
-    }
-
-    get_settings() {
-        // NOT FULLY IMPLEMENTED - Needs serial port read handling
+        return buffer_size_c[bufferSize] !== undefined ? power_c[power] : null;
     }
 
     send(data) {
-        this.M1_gpio.writeSync(0);
-        this.M0_gpio.writeSync(0);
-        setTimeout(() => {
-            let l_addr = this.addr_temp & 0xff;
-            let h_addr = this.addr_temp >> 8 & 0xff;
-            const buffer = Buffer.from([h_addr, l_addr, ...data]);
-            this.port.write(buffer);
-        }, 100);
-    }
-
-
-    receive(callback) {
-        this.parser.on('data', (data) => {
-            console.log("Raw data from serial:", data);
-
-            try {
-                const buffer = Buffer.from(data)
-                if (buffer.length < 3) {
-                    console.log("Incomplete packet");
-                    return;
-                }
-                const node_address = (buffer[0] << 8) + buffer[1];
-                const rssi = 256 - buffer[buffer.length - 1];
-                const message_bytes = buffer.slice(2, -1);
-                const message_str = message_bytes.toString('utf-8');
-                let json_message;
-                const start = message_str.indexOf('{');
-                const end = message_str.lastIndexOf('}') + 1;
-
-                if (start !== -1 && end !== -1) {
-                    json_message = message_str.substring(start, end);
-                    console.log(json_message)
-                    const time = new Date().toISOString();
-                    callback({ time, message: json_message, rssi, node_address }); // Pass to callback
-
-                }
-                else {
-                    console.log("No JSON found in message");
-                    console.log(message_str)
-                }
-            }
-            catch (error) {
-                console.error("Error processing received data:", error);
-            }
-        });
-    }
-
-    get_channel_rssi() {
-        // NOT FULLY IMPLEMENTED - Needs serial port read handling
+        let l_addr = this.addr_temp & 0xff;
+        let h_addr = this.addr_temp >> 8 & 0xff;
+        const buffer = Buffer.from([h_addr, l_addr, ...data]);
+        this.port.write(buffer);
     }
 }
 
+// --- Main Program Logic ---
+const node = new sx126x(serialPortPath, frequency, currentAddress, power, enableRssi);
 
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+// Function to send a message
+function sendMessage(command) {
+    const timestamp = new Date().toISOString();
+    const message = {
+        command: command,
+        timestamp: timestamp
+    };
+    const messageString = JSON.stringify(message);
 
-// Serve static files from the 'public' directory
-app.use(express.static('public')); // Put your React build files in a 'public' folder
+    node.addr_temp = targetAddress; // Set the target address
+    node.send(Buffer.from(messageString, 'utf8'));
+    console.log(`Sent: ${messageString}`);
+}
 
-const PORT = 8080;
+// Cycle through commands every 5 seconds
+let commandIndex = 0;
+const commands = ["ON", "OFF", "STATUS"];
 
-// Replace with your actual serial port configuration
-const node = new sx126x("/dev/ttyS0", 433, 2, 22, false);
-
-wss.on('connection', (ws) => {
-    console.log('Client connected');
-
-    // Listen for serial data and send to WebSocket clients
-    node.receive((data) => {
-        console.log("Sending to WS:", data);
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(data));
-        }
-    });
-
-
-    ws.on('message', (message) => {
-        try {
-            const parsedMessage = JSON.parse(message);
-            const { command, targetAddress } = parsedMessage;
-
-            if (command && targetAddress) {
-                const timestamp = new Date().toISOString();
-                const message = { command, time: timestamp };
-                const json_message = JSON.stringify(message);
-                const original_address = node.addr;
-                node.addr_temp = node.addr;
-                node.set(node.freq, targetAddress, node.power, node.rssi);
-                //console.log(json_message)
-                node.send(Buffer.from(json_message, 'utf8'));
-                node.set(node.freq, original_address, node.power, node.rssi);
-                //console.log(`Command sent to ${targetAddress}.`);
-
-            } else {
-                console.warn('Received invalid message:', message);
-            }
-        } catch (error) {
-            console.error('Error processing message:', error);
-        }
-    });
-
-    ws.on('close', () => {
-        console.log('Client disconnected');
-    });
-});
-
-server.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
-});
+setInterval(() => {
+    const command = commands[commandIndex];
+    sendMessage(command);
+    commandIndex = (commandIndex + 1) % commands.length;
+}, 5000);
