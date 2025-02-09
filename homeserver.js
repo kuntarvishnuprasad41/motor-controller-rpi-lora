@@ -19,6 +19,15 @@ function setAddress(address) {
     myPort.write(`AT+ADDRESS=${address}\r\n`);
 }
 
+function setTargetAddress(targetAddress) {
+    // Command to set the target address (depends on your LoRa module)
+    const command = `AT+DEST=${targetAddress}\r\n`;
+
+    console.log(`Setting target address to: ${targetAddress}`);
+    myPort.write(command);
+}
+
+
 function setFrequency(freq) {
     console.log(`Setting frequency to: ${freq}`);
     myPort.write(`AT+FREQ=${freq}\r\n`);
@@ -28,6 +37,11 @@ function sendLoRaMessage(message, targetAddress) {
     console.log(`Sending to ${targetAddress}: ${message}`);
     
     // setAddress(targetAddress);
+        setTargetAddress(targetAddress); // Use a function that only modifies the recipient
+
+
+    
+
     console.log(`Sending to ${targetAddress}: ${message} from ${CURRENT_ADDRESS}`);
     myPort.write(message + '\r\n');
     setAddress(CURRENT_ADDRESS);
