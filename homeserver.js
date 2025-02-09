@@ -1,54 +1,35 @@
 const WebSocket = require('ws');
-const { SerialPort } = require('serialport');
-const { ReadlineParser } = require('@serialport/parser-readline');
+const SX126x = require('./sx126x'); // Assuming sx126x.js is in the same directory
 
 const portname = process.argv[2] || '/dev/ttyS0';
-const BAUD_RATE = 9600;
 const FREQUENCY = 433;
 const CURRENT_ADDRESS = 0;
 const TARGET_ADDRESS = 30;
 const POWER = 22;
-
-const myPort = new SerialPort({ path: portname, baudRate: BAUD_RATE });
-const parser = myPort.pipe(new ReadlineParser({ delimiter: '\r\n' }));
+const RSSI = true; // Enable RSSI reporting
 
 const wss = new WebSocket.Server({ port: 8080 });
 
-function delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+let loraModule;
+
+async function initializeLora() {
+    loraModule = new SX126x(portname, FREQUENCY, CURRENT_ADDRESS, POWER, RSSI);
+    const success = await loraModule.initialize();
+    if (!success) {
+        console.error("Lora module initialization failed. Exiting...");
+        process.exit(1); // Or handle the error as needed
+    }
+    console.log("Lora module initialized successfully.");
 }
 
-async function setAddress(address) {
-    console.log(`Setting address to: ${address}`);
-    myPort.write(`AT+ADDRESS=${address}\r\n`);
-    await delay(100);  // Ensure it takes effect
-}
-
-async function setTargetAddress(targetAddress) {
-    console.log(`Setting target address to: ${targetAddress}`);
-    myPort.write(`AT+DEST=${targetAddress}\r\n`);
-    await delay(100);  // Allow time for setting to apply
-}
-
-async function setFrequency(freq) {
-    console.log(`Setting frequency to: ${freq}`);
-    myPort.write(`AT+FREQ=${freq}\r\n`);
-    await delay(100); // Wait before proceeding
-}
 
 async function sendLoRaMessage(message, targetAddress) {
-    console.log(`Preparing to send to ${targetAddress}: ${message}`);
-
-    // Ensure target is set
-    await setTargetAddress(targetAddress);
-
-    await delay(200); // Small delay to allow setting to take effect
-
-    console.log(`Sending: ${message} to ${targetAddress}`);
-    myPort.write(`AT+SEND=${targetAddress},${Buffer.byteLength(message)},${message}\r\n`);
-
-    await delay(200);  // Allow sending time before resetting back
-    await setAddress(CURRENT_ADDRESS);
+    try {
+        await loraModule.send(message);
+        console.log(`Sent: ${message} to ${targetAddress}`);
+    } catch (error) {
+        console.error("Error sending LoRa message:", error);
+    }
 }
 
 wss.on('connection', ws => {
@@ -73,21 +54,39 @@ wss.on('connection', ws => {
     ws.on('close', () => console.log('Client disconnected'));
 });
 
-parser.on('data', data => {
-    const currentTime = new Date().toISOString();
-    console.log(`[${currentTime}] Received from LoRa: ${data}`);
+async function receiveLoRaMessage() {
+    try {
+        const receivedData = await loraModule.receive();
+        if (receivedData) {
+            const currentTime = new Date().toISOString();
+            console.log(`[${currentTime}] Received from LoRa:`, receivedData);
 
-    wss.clients.forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify({ time: currentTime, message: data }));
+            wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify({ time: currentTime, message: receivedData }));
+                }
+            });
         }
-    });
-});
+    } catch (error) {
+        console.error("Error receiving LoRa message:", error);
+    }
+    // Continuously listen for new messages
+    setTimeout(receiveLoRaMessage, 10); // Check for new messages every 10ms
+}
 
-myPort.on('error', err => console.error('SerialPort Error:', err.message));
 
-console.log('WebSocket server and Serial port listener started...');
+async function cleanup() {
+    if (loraModule) {
+        await loraModule.cleanup();
+        console.log("Lora module cleaned up.");
+    }
+}
+
+process.on('SIGINT', cleanup); // Clean up on Ctrl+C
+
+console.log('WebSocket server and LoRa listener started...');
+
 (async () => {
-    await setFrequency(FREQUENCY);
-    await setAddress(CURRENT_ADDRESS);
+    await initializeLora();
+    await receiveLoRaMessage(); // Start listening for messages
 })();
