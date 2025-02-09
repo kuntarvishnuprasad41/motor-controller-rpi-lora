@@ -2,6 +2,8 @@ const WebSocket = require('ws');
 const serialport = require('serialport');
 const SerialPort = serialport.SerialPort;
 const Readline = require('@serialport/parser-readline');
+const { ReadlineParser } = require("@serialport/parser-readline");
+
 const portname = process.argv[2];
 
 
@@ -17,8 +19,10 @@ const POWER = 22;
 const myPort = new SerialPort({
     path: portname,
     baudRate: BAUD_RATE,
-    parser: new Readline("\n")
+    parser  : new ReadlineParser({ delimiter: "\n" })
+    
 });
+// parser: new Readline("\n")
 // const port = new SerialPort(SERIAL_PORT, { baudRate: BAUD_RATE });
 const parser = port.pipe(new Readline({ delimiter: '\r\n' }));
 
