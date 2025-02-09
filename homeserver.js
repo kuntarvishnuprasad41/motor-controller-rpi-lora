@@ -1,10 +1,15 @@
 const WebSocket = require('ws');
 const serialport = require('serialport');
-const SerialPort = serialport.SerialPort;
+// const SerialPort = serialport.SerialPort;
 const Readline = require('@serialport/parser-readline');
 const { ReadlineParser } = require("@serialport/parser-readline");
 
-const portname = process.argv[2];
+const { SerialPort } = require('serialport');
+
+
+const portname = process.argv[2] || "/dev/ttyS0"; // Default to /dev/ttyS0 if no argument is given
+
+// const BAUD_RATE = 9600; 
 
 
 // --- Configuration ---
@@ -17,14 +22,12 @@ const POWER = 22;
 
 // --- Serial Port Setup ---
 const myPort = new SerialPort({
-    path: portname,
-    baudRate: BAUD_RATE,
-    parser  : new ReadlineParser({ delimiter: "\n" })
-    
+    path: portname, // Ensure 'path' is properly set
+    baudRate: BAUD_RATE
 });
 // parser: new Readline("\n")
 // const port = new SerialPort(SERIAL_PORT, { baudRate: BAUD_RATE });
-const parser = port.pipe(new Readline({ delimiter: '\r\n' }));
+const parser = myPort.pipe(new ReadlineParser({ delimiter: "\r\n" }));
 
 // --- WebSocket Server Setup ---
 const wss = new WebSocket.Server({ port: 8080 });
