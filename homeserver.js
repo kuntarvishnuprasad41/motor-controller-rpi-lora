@@ -20,13 +20,9 @@ function setAddress(address) {
 }
 
 function setTargetAddress(targetAddress) {
-    // Command to set the target address (depends on your LoRa module)
-    const command = `AT+DEST=${targetAddress}\r\n`;
-
     console.log(`Setting target address to: ${targetAddress}`);
-    myPort.write(command);
+    myPort.write(`AT+DEST=${targetAddress}\r\n`);
 }
-
 
 function setFrequency(freq) {
     console.log(`Setting frequency to: ${freq}`);
@@ -34,17 +30,19 @@ function setFrequency(freq) {
 }
 
 function sendLoRaMessage(message, targetAddress) {
-    console.log(`Sending to ${targetAddress}: ${message}`);
-    
-    // setAddress(targetAddress);
-        setTargetAddress(targetAddress); // Use a function that only modifies the recipient
+    console.log(`Preparing to send to ${targetAddress}: ${message}`);
 
+    // Ensure we set the target before sending
+    setTargetAddress(targetAddress);
 
-    
+    setTimeout(() => {
+        console.log(`Sending: ${message} to ${targetAddress}`);
+        myPort.write(`AT+SEND=${targetAddress},${message.length},${message}\r\n`);
 
-    console.log(`Sending to ${targetAddress}: ${message} from ${CURRENT_ADDRESS}`);
-    myPort.write(message + '\r\n');
-    setAddress(CURRENT_ADDRESS);
+        setTimeout(() => {
+            setAddress(CURRENT_ADDRESS); // Reset back to sender address after sending
+        }, 200);
+    }, 200);
 }
 
 wss.on('connection', ws => {
@@ -56,8 +54,7 @@ wss.on('connection', ws => {
             console.log('Received from client:', data);
 
             if (data.command) {
-                const target =  TARGET_ADDRESS;
-                sendLoRaMessage(JSON.stringify({ command: data.command, time: new Date().toISOString() }), target);
+                sendLoRaMessage(JSON.stringify({ command: data.command, time: new Date().toISOString() }), TARGET_ADDRESS);
             }
         } catch (error) {
             console.error('Invalid JSON received:', error);
@@ -81,5 +78,5 @@ parser.on('data', data => {
 myPort.on('error', err => console.error('SerialPort Error:', err.message));
 
 console.log('WebSocket server and Serial port listener started...');
-setFrequency(FREQUENCY);
-setAddress(CURRENT_ADDRESS);
+setTimeout(() => setFrequency(FREQUENCY), 100);
+setTimeout(() => setAddress(CURRENT_ADDRESS), 200);
