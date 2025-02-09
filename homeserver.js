@@ -25,6 +25,8 @@ function setFrequency(freq) {
 }
 
 function sendLoRaMessage(message, targetAddress) {
+    console.log(`Sending to ${targetAddress}: ${message}`);
+    
     setAddress(targetAddress);
     console.log(`Sending to ${targetAddress}: ${message}`);
     myPort.write(message + '\r\n');
