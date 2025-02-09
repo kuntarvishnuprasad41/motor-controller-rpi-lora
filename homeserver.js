@@ -14,35 +14,17 @@ const parser = myPort.pipe(new ReadlineParser({ delimiter: '\r\n' }));
 
 const wss = new WebSocket.Server({ port: 8080 });
 
-function setAddress(address) {
-    console.log(`Setting address to: ${address}`);
-    myPort.write(`AT+ADDRESS=${address}\r\n`);
-}
+function sendCommand(command, targetAddress) {
+    const timestamp = new Date().toISOString();
+    const message = JSON.stringify({ command, time: timestamp });
 
-function setTargetAddress(targetAddress) {
-    console.log(`Setting target address to: ${targetAddress}`);
-    myPort.write(`AT+DEST=${targetAddress}\r\n`);
-}
-
-function setFrequency(freq) {
-    console.log(`Setting frequency to: ${freq}`);
-    myPort.write(`AT+FREQ=${freq}\r\n`);
-}
-
-function sendLoRaMessage(message, targetAddress) {
-    console.log(`Preparing to send to ${targetAddress}: ${message}`);
-
-    // Ensure we set the target before sending
-    setTargetAddress(targetAddress);
-
-    setTimeout(() => {
-        console.log(`Sending: ${message} to ${targetAddress}`);
-        myPort.write(`AT+SEND=${targetAddress},${message.length},${message}\r\n`);
-
+    console.log(`Setting target address: ${targetAddress}`);
+    myPort.write(`AT+DEST=${targetAddress}\r\n`, () => {
         setTimeout(() => {
-            setAddress(CURRENT_ADDRESS); // Reset back to sender address after sending
-        }, 200);
-    }, 200);
+            console.log(`Sending command: ${message}`);
+            myPort.write(`AT+SEND=${targetAddress},${message.length},${message}\r\n`);
+        }, 200); // Give time to switch address
+    });
 }
 
 wss.on('connection', ws => {
@@ -54,7 +36,7 @@ wss.on('connection', ws => {
             console.log('Received from client:', data);
 
             if (data.command) {
-                sendLoRaMessage(JSON.stringify({ command: data.command, time: new Date().toISOString() }), TARGET_ADDRESS);
+                sendCommand(data.command, TARGET_ADDRESS);
             }
         } catch (error) {
             console.error('Invalid JSON received:', error);
@@ -78,5 +60,5 @@ parser.on('data', data => {
 myPort.on('error', err => console.error('SerialPort Error:', err.message));
 
 console.log('WebSocket server and Serial port listener started...');
-setTimeout(() => setFrequency(FREQUENCY), 100);
-setTimeout(() => setAddress(CURRENT_ADDRESS), 200);
+setTimeout(() => myPort.write(`AT+FREQ=${FREQUENCY}\r\n`), 100);
+setTimeout(() => myPort.write(`AT+ADDRESS=${CURRENT_ADDRESS}\r\n`), 200);
