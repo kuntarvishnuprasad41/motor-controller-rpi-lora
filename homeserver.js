@@ -2,6 +2,8 @@ const WebSocket = require('ws');
 const serialport = require('serialport');
 const SerialPort = serialport.SerialPort;
 const Readline = require('@serialport/parser-readline');
+const portname = process.argv[2];
+
 
 // --- Configuration ---
 const SERIAL_PORT = '/dev/ttyS0'; //  Change this to your serial port
