@@ -12,7 +12,12 @@ const TARGET_ADDRESS = 30;     // Default target, can be changed by frontend
 const POWER = 22;
 
 // --- Serial Port Setup ---
-const port = new SerialPort(SERIAL_PORT, { baudRate: BAUD_RATE });
+const myPort = new SerialPort({
+    path: portname,
+    baudRate: BAUD_RATE,
+    parser: new Readline("\n")
+});
+// const port = new SerialPort(SERIAL_PORT, { baudRate: BAUD_RATE });
 const parser = port.pipe(new Readline({ delimiter: '\r\n' }));
 
 // --- WebSocket Server Setup ---
