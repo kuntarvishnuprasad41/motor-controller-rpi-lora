@@ -17,12 +17,22 @@ const enableRssi = false;        //  RSSI reporting
 const relayOnPin = 23;  // GPIO pin for ON relay
 const relayOffPin = 24; // GPIO pin for OFF relay
 
-// Initialize GPIO (using onoff)
-const relayOn = new Gpio(relayOnPin, 'out');
-const relayOff = new Gpio(relayOffPin, 'out');
-relayOn.writeSync(0); // Ensure relays are OFF initially
-relayOff.writeSync(0);
+let relayOn, relayOff; // Declare outside the try block
 
+try {
+    // Initialize GPIO (using onoff)
+    relayOn = new Gpio(relayOnPin, 'out');
+    relayOff = new Gpio(relayOffPin, 'out');
+    relayOn.writeSync(0); // Ensure relays are OFF initially
+    relayOff.writeSync(0);
+    console.log("GPIO pins initialized successfully."); // Add success message
+
+} catch (error) {
+    console.error("Error initializing GPIO:", error);
+    console.error("Check GPIO permissions, pin numbers, and onoff installation.");
+    // Optionally, exit the program if GPIO initialization fails:
+    // process.exit(1);
+}
 
 // --- sx126x Class ---
 class sx126x {
@@ -182,13 +192,12 @@ class sx126x {
         }, 100);
     }
 
-
     receive(callback) {
         this.parser.on('data', (data) => {
             console.log("Raw data from serial:", data);
 
             try {
-                const buffer = Buffer.from(data)
+                const buffer = Buffer.from(data);
                 if (buffer.length < 3) {
                     console.log("Incomplete packet");
                     return;
@@ -203,17 +212,15 @@ class sx126x {
 
                 if (start !== -1 && end !== -1) {
                     json_message = message_str.substring(start, end);
-                    console.log(json_message)
+                    console.log(json_message);
                     const time = new Date().toISOString();
                     callback({ time, message: json_message, rssi, node_address }); // Pass to callback
 
-                }
-                else {
+                } else {
                     console.log("No JSON found in message");
-                    console.log(message_str)
+                    console.log(message_str);
                 }
-            }
-            catch (error) {
+            } catch (error) {
                 console.error("Error processing received data:", error);
             }
         });
@@ -240,6 +247,7 @@ function sendReply(message, targetAddress) {
     node.set(node.freq, originalAddress, node.power, node.rssi);
     console.log(`Reply sent to ${targetAddress}: ${message}`);
 }
+
 // Replace the original receive method to use a callback:
 node.receive((receivedData) => {
     try {
@@ -250,19 +258,34 @@ node.receive((receivedData) => {
             console.log(`[${currentTime}] Received command: ${command}`);
 
             if (command === "ON") {
-                relayOff.writeSync(0);  // Ensure only one relay is on
-                relayOn.writeSync(1);   // Turn ON relay
-                sendReply("Motor on", targetAddress);
+                if (relayOff && relayOn) { // Check if relayOn and relayOff are defined
+                    relayOff.writeSync(0);  // Ensure only one relay is on
+                    relayOn.writeSync(1);   // Turn ON relay
+                    sendReply("Motor on", targetAddress);
+                } else {
+                    console.error("relayOn or relayOff is not initialized. Check GPIO initialization.");
+                    sendReply("Error: Relay control failed", targetAddress);
+                }
             } else if (command === "OFF") {
-                relayOn.writeSync(0);   // Turn OFF relay
-                relayOff.writeSync(1);
-                setTimeout(() => {
-                    relayOff.writeSync(0);
-                }, 500);
-                sendReply("Motor off", targetAddress);
+                if (relayOn && relayOff) { // Check if relayOn and relayOff are defined
+                    relayOn.writeSync(0);   // Turn OFF relay
+                    relayOff.writeSync(1);
+                    setTimeout(() => {
+                        relayOff.writeSync(0);
+                    }, 500);
+                    sendReply("Motor off", targetAddress);
+                } else {
+                    console.error("relayOn or relayOff is not initialized. Check GPIO initialization.");
+                    sendReply("Error: Relay control failed", targetAddress);
+                }
             } else if (command === "STATUS") {
-                const status = relayOn.readSync() === 1 ? "ON" : "OFF";
-                sendReply(`Motor is ${status}`, targetAddress);
+                if (relayOn) { // Check if relayOn is defined
+                    const status = relayOn.readSync() === 1 ? "ON" : "OFF";
+                    sendReply(`Motor is ${status}`, targetAddress);
+                } else {
+                    console.error("relayOn is not initialized. Check GPIO initialization.");
+                    sendReply("Error: Could not read motor status", targetAddress);
+                }
             } else {
                 sendReply("Unknown command", targetAddress);
             }
@@ -275,19 +298,23 @@ node.receive((receivedData) => {
 // --- Signal Handling (for graceful shutdown) ---
 process.on('SIGINT', () => {
     console.log("Shutting down...");
-    relayOn.writeSync(0);   // Turn OFF relays
-    relayOff.writeSync(0);
-    relayOn.unexport();    // Unexport GPIO pins
-    relayOff.unexport();
+    if (relayOn && relayOff) {
+        relayOn.writeSync(0);   // Turn OFF relays
+        relayOff.writeSync(0);
+        relayOn.unexport();    // Unexport GPIO pins
+        relayOff.unexport();
+    }
     process.exit(0);
 });
 
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);
-    relayOn.writeSync(0);   // Turn OFF relays on error
-    relayOff.writeSync(0);
-    relayOn.unexport();    // Unexport GPIO pins
-    relayOff.unexport();
+    if (relayOn && relayOff) {
+        relayOn.writeSync(0);   // Turn OFF relays on error
+        relayOff.writeSync(0);
+        relayOn.unexport();    // Unexport GPIO pins
+        relayOff.unexport();
+    }
     process.exit(1);
 });
 
