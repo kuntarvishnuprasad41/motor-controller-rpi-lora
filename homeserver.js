@@ -28,7 +28,7 @@ function sendLoRaMessage(message, targetAddress) {
     console.log(`Sending to ${targetAddress}: ${message}`);
     
     setAddress(targetAddress);
-    console.log(`Sending to ${targetAddress}: ${message}`);
+    console.log(`Sending to ${targetAddress}: ${message} from ${CURRENT_ADDRESS}`);
     myPort.write(message + '\r\n');
     setAddress(CURRENT_ADDRESS);
 }
