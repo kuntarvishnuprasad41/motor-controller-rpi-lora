@@ -40,7 +40,7 @@ wss.on('connection', ws => {
             console.log('Received from client:', data);
 
             if (data.command) {
-                const target = data.targetAddress || TARGET_ADDRESS;
+                const target =  TARGET_ADDRESS;
                 sendLoRaMessage(JSON.stringify({ command: data.command, time: new Date().toISOString() }), target);
             }
         } catch (error) {
