@@ -1,5 +1,6 @@
 const WebSocket = require('ws');
-const SerialPort = require('serialport');
+const serialport = require('serialport');
+const SerialPort = serialport.SerialPort;
 const Readline = require('@serialport/parser-readline');
 
 // --- Configuration ---
