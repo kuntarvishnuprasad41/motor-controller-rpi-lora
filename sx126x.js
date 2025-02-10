@@ -229,24 +229,64 @@ class SX126X {
         await new Promise(resolve => setTimeout(resolve, 100)); // time.sleep(0.1)
     }
 
-    receive() { // Modified receive method with more logging
+    // receive() { // Modified receive method with more logging
+    //     return new Promise((resolve, reject) => {
+    //         const dataHandler = (data) => {
+    //             const receivedString = data.toString('utf8');
+    //             console.log(`[SerialPort - receive()] Data event received: ${receivedString}`); // Added logging here
+    //             this.serialPort.off('data', dataHandler);
+    //             this.serialPort.off('error', errorHandler);
+    //             resolve(receivedString);
+    //         };
+
+    //         const errorHandler = (err) => {
+    //             console.error("[SerialPort - receive()] Error during receive:", err); // Added logging here
+    //             this.serialPort.off('data', dataHandler);
+    //             this.serialPort.off('error', errorHandler);
+    //             reject(err);
+    //         };
+
+    //         console.log("[SerialPort - receive()] Setting up data listener..."); // Added logging when listener is set
+    //         this.serialPort.on('data', dataHandler);
+    //         this.serialPort.on('error', errorHandler);
+    //     });
+    // }
+
+    receive() {
         return new Promise((resolve, reject) => {
+            let accumulatedData = ''; // Buffer to accumulate data
+
             const dataHandler = (data) => {
                 const receivedString = data.toString('utf8');
-                console.log(`[SerialPort - receive()] Data event received: ${receivedString}`); // Added logging here
-                this.serialPort.off('data', dataHandler);
-                this.serialPort.off('error', errorHandler);
-                resolve(receivedString);
+                accumulatedData += receivedString; // Append new data to buffer
+
+                // Attempt to parse accumulated data as JSON
+                try {
+                    const parsedJSON = JSON.parse(accumulatedData);
+                    // JSON parsing successful!  We likely have a complete message.
+                    console.log(`[SerialPort - receive()] Complete JSON Received and Parsed:`, parsedJSON); // Log complete JSON
+                    this.serialPort.off('data', dataHandler); // Remove listener
+                    this.serialPort.off('error', errorHandler); // Remove error listener
+                    resolve(JSON.stringify(parsedJSON)); // Resolve with stringified JSON
+                    accumulatedData = ''; // Reset buffer for next message (important!)
+
+                } catch (parseError) {
+                    // JSON parsing failed - Incomplete JSON or other error.
+                    // Wait for more data.  Do NOT resolve or reject yet.
+                    console.log("[SerialPort - receive()] Incomplete JSON received, accumulating more data...", accumulatedData);
+                    // If you want to log the parse error itself for more detail, you can add:
+                    // console.error("[SerialPort - receive()] JSON Parse Error:", parseError);
+                }
             };
 
             const errorHandler = (err) => {
-                console.error("[SerialPort - receive()] Error during receive:", err); // Added logging here
+                console.error("[SerialPort - receive()] Error during receive:", err);
                 this.serialPort.off('data', dataHandler);
                 this.serialPort.off('error', errorHandler);
                 reject(err);
             };
 
-            console.log("[SerialPort - receive()] Setting up data listener..."); // Added logging when listener is set
+            console.log("[SerialPort - receive()] Setting up data listener...");
             this.serialPort.on('data', dataHandler);
             this.serialPort.on('error', errorHandler);
         });
