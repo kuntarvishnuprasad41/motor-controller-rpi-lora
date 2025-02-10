@@ -103,7 +103,8 @@ try:
                         GPIO.output(24, GPIO.HIGH)  # Turn ON relay for OFF condition
                         time.sleep(0.5)
                         GPIO.output(24, GPIO.LOW)   # Turn OFF relay for OFF condition
-                        send_reply("Motor off", target_address)
+                        if(prev_motor_state == "ON"):
+                            send_reply("Motor off", target_address)
                         prev_motor_state = "OFF"
                     elif command == "STATUS":
                         status = "ON" if GPIO.input(23) else "OFF"
