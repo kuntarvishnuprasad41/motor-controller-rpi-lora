@@ -103,10 +103,10 @@ try:
             except json.JSONDecodeError:
                 print(f"Received non-JSON data: {received_data}")
     
-        if GPIO.input(DOUT_PIN) and not GPIO.input(23) and not GPIO.input(24):
-            GPIO.output(24, GPIO.LOW)   # Turn OFF relay 24 (ensure only one is on)
-            GPIO.output(23, GPIO.HIGH) 
-            send_command("ON", target_address)
+        # if GPIO.input(DOUT_PIN) and not GPIO.input(23) and not GPIO.input(24):
+        #     GPIO.output(24, GPIO.LOW)   # Turn OFF relay 24 (ensure only one is on)
+        #     GPIO.output(23, GPIO.HIGH) 
+        #     send_command("ON", target_address)
         
 
 
