@@ -121,6 +121,14 @@ try:
             prev_state = "ON"
             # send_command("OFF", target_address)
             # time.sleep(1)
+        elif not GPIO.input(DOUT_PIN):
+            if(prev_state) == "ON":
+                GPIO.output(23, GPIO.LOW)   # Turn OFF relay 23
+                GPIO.output(24, GPIO.HIGH)  # Turn ON relay 24
+                time.sleep(0.5)
+                GPIO.output(24, GPIO.LOW)  # Turn ON relay 24
+                send_reply("Motor off", target_address) # Send "Motor off" message
+                prev_state = "OFF"
 
         # if GPIO.input(DOUT_PIN) and not GPIO.input(23) and not GPIO.input(24):
         #     GPIO.output(24, GPIO.LOW)   # Turn OFF relay 24 (ensure only one is on)
