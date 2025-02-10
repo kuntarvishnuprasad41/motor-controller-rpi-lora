@@ -25,7 +25,10 @@ async function main() {
     }
 
 
-    const node = new SX126X("/dev/ttyS0", 433, current_address, 22, false); // Replace "/dev/ttyS0" if needed
+    // const node = new SX126X("/dev/ttyS0", 433, current_address, 22, false); // Replace "/dev/ttyS0" if needed
+    const node = new SX126X(null, 433, current_address, 22, false); // Pass null for serial_num in constructor
+    node.beginSerial("/dev/ttyS0"); // Initialize serial port AFTER getting current_address
+
 
     function send_command(command, target_address) {
         const timestamp = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''); // "YYYY-MM-DD HH:MM:SS" format

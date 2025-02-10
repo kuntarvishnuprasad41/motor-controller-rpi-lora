@@ -1,18 +1,18 @@
 class SX126X {
-    constructor(serial_num, freq, addr, power, rssi) {
+    constructor(serial_num, freq, addr, power, rssi) { // Removed serial_num from constructor args
         this.rssi = rssi;
         this.addr = addr;
         this.freq = freq;
-        this.serial_n = serial_num;
+        this.serial_n = serial_num; // You can keep this if you need to store serial_num, but it's not used for init here
         this.power = power;
         this.send_to = addr;
 
-        this.M0 = 22; // Assuming GPIO pin 22 for M0
-        this.M1 = 27; // Assuming GPIO pin 27 for M1
+        this.M0 = 22;
+        this.M1 = 27;
 
         this.cfg_reg = [0xC2, 0x00, 0x09, 0x00, 0x00, 0x00, 0x62, 0x00, 0x17, 0x00, 0x00, 0x00];
-        this.get_reg = Buffer.alloc(12); // Node.js Buffer for bytes
-        this.serialPort = null; // Will be initialized later
+        this.get_reg = Buffer.alloc(12);
+        this.serialPort = null;
 
         this.SX126X_UART_BAUDRATE_1200 = 0x00;
         this.SX126X_UART_BAUDRATE_2400 = 0x20;
@@ -43,8 +43,29 @@ class SX126X {
         this.SX126X_Power_10dBm = 0x03;
 
         this.initializeGPIO();
-        this.initializeSerial(serial_num);
-        this.set(freq, addr, power, rssi); // Initial set call
+        // this.initializeSerial(serial_num);  <-- REMOVED from constructor
+        this.set(freq, addr, power, rssi);
+    }
+
+    beginSerial(serial_num) { // Renamed method
+        // const SerialPort = require('serialport');
+        const SerialPort = require('serialport').SerialPort;
+
+        this.serialPort = new SerialPort({ // e.g., '/dev/ttyS0'
+            path: serial_num,
+            baudRate: 9600,
+        });
+
+        this.serialPort.on('open', () => {
+            this.serialPort.flush(() => {
+                console.log('Serial port opened and input flushed');
+            });
+        });
+
+        this.serialPort.on('error', (err) => {
+            console.error("Serial port error:", err);
+        });
+
     }
 
     async initializeGPIO() {
