@@ -257,28 +257,28 @@ class SX126X {
             let accumulatedData = ''; // Buffer to accumulate data
 
             const dataHandler = (data) => {
-                let receivedString = data.toString('utf8');
+                // Log raw byte data for inspection:
+                console.log("[SerialPort - receive()] Raw Bytes Received:", data); // <--- Changed to log 'data' (Buffer)
 
-                // Data Cleaning Step: Trim whitespace and remove non-printable characters (ASCII 32-126 are printable)
-                receivedString = receivedString.trim();
-                receivedString = receivedString.replace(/[^ -~]+/g, ''); // Remove non-printable ASCII
-
-                accumulatedData += receivedString; // Append cleaned data to buffer
+                const receivedString = data.toString('utf8');
+                accumulatedData += receivedString; // Append new data to buffer
 
                 // Attempt to parse accumulated data as JSON
                 try {
                     const parsedJSON = JSON.parse(accumulatedData);
-                    // JSON parsing successful!
-                    console.log(`[SerialPort - receive()] Complete JSON Received and Parsed:`, parsedJSON);
-                    this.serialPort.off('data', dataHandler);
-                    this.serialPort.off('error', errorHandler);
-                    resolve(JSON.stringify(parsedJSON));
-                    accumulatedData = ''; // Reset buffer
+                    // JSON parsing successful!  We likely have a complete message.
+                    console.log(`[SerialPort - receive()] Complete JSON Received and Parsed:`, parsedJSON); // Log complete JSON
+                    this.serialPort.off('data', dataHandler); // Remove listener
+                    this.serialPort.off('error', errorHandler); // Remove error listener
+                    resolve(JSON.stringify(parsedJSON)); // Resolve with stringified JSON
+                    accumulatedData = ''; // Reset buffer for next message (important!)
 
                 } catch (parseError) {
-                    // JSON parsing failed - Incomplete or still invalid JSON
+                    // JSON parsing failed - Incomplete JSON or other error.
+                    // Wait for more data.  Do NOT resolve or reject yet.
                     console.log("[SerialPort - receive()] Incomplete or Invalid JSON, accumulating more data...", accumulatedData);
-                    // Optionally log parseError for more detail if needed
+                    // If you want to log the parse error itself for more detail, you can add:
+                    // console.error("[SerialPort - receive()] JSON Parse Error:", parseError);
                 }
             };
 
