@@ -229,23 +229,24 @@ class SX126X {
         await new Promise(resolve => setTimeout(resolve, 100)); // time.sleep(0.1)
     }
 
-    receive() { // Modified receive method - now returns a Promise that resolves with received data
+    receive() { // Modified receive method with more logging
         return new Promise((resolve, reject) => {
             const dataHandler = (data) => {
                 const receivedString = data.toString('utf8');
-                console.log(`[SerialPort] Received data: ${receivedString}`); // Optional logging
-                this.serialPort.off('data', dataHandler); // Remove listener after receiving data once
-                this.serialPort.off('error', errorHandler); // Remove error listener too
+                console.log(`[SerialPort - receive()] Data event received: ${receivedString}`); // Added logging here
+                this.serialPort.off('data', dataHandler);
+                this.serialPort.off('error', errorHandler);
                 resolve(receivedString);
             };
 
             const errorHandler = (err) => {
-                console.error("[SerialPort] Error during receive:", err);
-                this.serialPort.off('data', dataHandler); // Remove data listener on error
-                this.serialPort.off('error', errorHandler); // Remove this error listener
+                console.error("[SerialPort - receive()] Error during receive:", err); // Added logging here
+                this.serialPort.off('data', dataHandler);
+                this.serialPort.off('error', errorHandler);
                 reject(err);
             };
 
+            console.log("[SerialPort - receive()] Setting up data listener..."); // Added logging when listener is set
             this.serialPort.on('data', dataHandler);
             this.serialPort.on('error', errorHandler);
         });
