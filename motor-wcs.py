@@ -5,27 +5,35 @@ import select
 import termios
 import tty
 import json
-import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO  # Import RPi.GPIO
 import os 
 
 # Initialize GPIO
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(23, GPIO.OUT)  # Relay for ON
 GPIO.setup(24, GPIO.OUT)  # Relay for OFF
-GPIO.setup(25, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)  # WCS1700 Sensor Digital Output
 
 GPIO.output(23, GPIO.LOW)
 GPIO.output(24, GPIO.LOW)
 
-if os.isatty(sys.stdin.fileno()):  
+DOUT_PIN = 25
+GPIO.setup(DOUT_PIN, GPIO.IN)
+
+
+
+
+if os.isatty(sys.stdin.fileno()):  # Check if running in a terminal
     old_settings = termios.tcgetattr(sys.stdin)
     tty.setcbreak(sys.stdin.fileno())
 else:
-    old_settings = None  
+    old_settings = None  # Prevent systemd from breaking
 
 time.sleep(1)
-
+# print("Enter curr node address (0-65535):")
+# current_address = int(input())
 current_address = 30
+
+
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)
 
 def send_command(command, target_address):
@@ -45,7 +53,7 @@ def send_command(command, target_address):
 def send_reply(message, target_address):
     """Sends a reply."""
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-    reply_message = {"reply": message, "time": timestamp}
+    reply_message = {"reply": message, "time": timestamp}  # Use "reply" key
     json_message = json.dumps(reply_message)
 
     original_address = node.addr
@@ -58,6 +66,8 @@ def send_reply(message, target_address):
 
 try:
     time.sleep(1)
+    # print("Enter target node address (0-65535):")
+    # target_address = int(input())
     target_address = 0
 
     while True:
@@ -73,37 +83,32 @@ try:
                     if command == "ON":
                         GPIO.output(24, GPIO.LOW)   # Turn OFF relay 24 (ensure only one is on)
                         GPIO.output(23, GPIO.HIGH)  # Turn ON relay 23
-                        send_reply("Motor on", target_address)
-
+                        # time.sleep(0.5)
+                        
+                        # GPIO.output(23, GPIO.LOW)  # Turn ON relay 23
+                        send_reply("Motor on", target_address)  # Send "Motor on" message
                     elif command == "OFF":
                         GPIO.output(23, GPIO.LOW)   # Turn OFF relay 23
                         GPIO.output(24, GPIO.HIGH)  # Turn ON relay 24
                         time.sleep(0.5)
-                        GPIO.output(24, GPIO.LOW)  # Ensure relay is OFF
-                        send_reply("Motor off", target_address)
-
+                        GPIO.output(24, GPIO.LOW)  # Turn ON relay 24
+                        send_reply("Motor off", target_address) # Send "Motor off" message
                     elif command == "STATUS":
-                        # Get status from WCS1700 or relay
-                        if GPIO.input(25):  # If current is detected
-                            status = "ON (manual switch)"
-                        elif GPIO.input(23):  # If relay is ON
-                            status = "ON"
-                        else:
-                            status = "OFF"
+                        # Get status (ON/OFF) and send it.  This will be the most useful.
+                        status = "ON" if GPIO.input(23) else "OFF"
                         send_reply(f"Motor is {status}", target_address)
-
                     else:
                         send_reply("Unknown command", target_address)
 
             except json.JSONDecodeError:
                 print(f"Received non-JSON data: {received_data}")
+    
+        if GPIO.input(DOUT_PIN) and not GPIO.input(23) and not GPIO.input(24):
+            GPIO.output(24, GPIO.LOW)   # Turn OFF relay 24 (ensure only one is on)
+            GPIO.output(23, GPIO.HIGH) 
+            send_command("ON", target_address)
+        
 
-        # **Check for Manual ON from WCS1700 and Turn ON Motor**
-        if GPIO.input(25) and not GPIO.input(23):  # Detect current but motor is OFF
-            print("[Manual Override] Motor turned ON manually.")
-            GPIO.output(23, GPIO.HIGH)  # **Turn ON relay 23 (Motor ON)**
-            send_reply("Motor is ON (manual switch)", target_address)
-            time.sleep(5)  # Avoid multiple rapid detections
 
         time.sleep(0.01)
 
