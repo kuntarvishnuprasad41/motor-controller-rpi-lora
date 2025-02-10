@@ -10,7 +10,7 @@ async function main() {
     });
 
     console.log("Enter curr node address (0-65535):");
-    let current_address;
+    let current_address = 0;
     while (!current_address) {
         const addressInput = await new Promise(resolve => rl.question('', resolve));
         try {
@@ -52,7 +52,7 @@ async function main() {
 
 
     console.log("Enter target node address (0-65535):");
-    let target_address;
+    let target_address = 30;
     while (!target_address) {
         const addressInput = await new Promise(resolve => rl.question('', resolve));
         try {
