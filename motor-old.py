@@ -6,7 +6,6 @@ import termios
 import tty
 import json
 import RPi.GPIO as GPIO  # Import RPi.GPIO
-import os 
 
 # Initialize GPIO
 GPIO.setmode(GPIO.BCM)
@@ -16,11 +15,8 @@ GPIO.setup(24, GPIO.OUT)  # Relay for OFF
 GPIO.output(23, GPIO.LOW)
 GPIO.output(24, GPIO.LOW)
 
-if os.isatty(sys.stdin.fileno()):  # Check if running in a terminal
-    old_settings = termios.tcgetattr(sys.stdin)
-    tty.setcbreak(sys.stdin.fileno())
-else:
-    old_settings = None  # Prevent systemd from breaking
+old_settings = termios.tcgetattr(sys.stdin)
+tty.setcbreak(sys.stdin.fileno())
 
 time.sleep(1)
 # print("Enter curr node address (0-65535):")
@@ -104,6 +100,5 @@ except ValueError:
 except Exception as e:
     print(f"An error occurred: {e}")
 finally:
-    if old_settings:
-        termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-    GPIO.cleanup()
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+    GPIO.cleanup()  # Clean up GPIO on exit
