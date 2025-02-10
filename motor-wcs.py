@@ -112,6 +112,8 @@ try:
         elif GPIO.input(DOUT_PIN):
             print("On Detected")
             if prev_state == "OFF":
+                GPIO.output(24, GPIO.LOW)   # Turn OFF relay 24 (ensure only one is on)
+                GPIO.output(23, GPIO.HIGH)
                 send_command("ON", target_address)
             time.sleep(1)
             prev_state = "ON"
