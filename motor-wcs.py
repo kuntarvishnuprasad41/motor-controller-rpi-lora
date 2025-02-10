@@ -61,20 +61,27 @@ try:
     time.sleep(1)
     target_address = 0  # Default target address
 
+    prev_motor_state = None  # Track previous motor state
+
     while True:
         # ✅ Read current sensor (WCS1700 DOUT)
         current_detected = GPIO.input(25)  # 1 = Current flowing, 0 = No current
 
-        if current_detected == 1:  # Current is detected → Turn on motor
+        if current_detected == 1 and prev_motor_state != "ON":
+            # Turn on motor only if it was previously OFF
             GPIO.output(24, GPIO.LOW)   # Ensure OFF relay is LOW
             GPIO.output(23, GPIO.HIGH)  # Turn ON relay for motor
             send_reply("Motor turned ON due to current detection", target_address)
-        else:  # No current detected → Turn off motor
+            prev_motor_state = "ON"  # Update state
+        
+        elif current_detected == 0 and prev_motor_state != "OFF":
+            # Turn off motor only if it was previously ON
             GPIO.output(23, GPIO.LOW)   # Turn OFF relay for motor
             GPIO.output(24, GPIO.HIGH)  # Turn ON relay for OFF condition
             time.sleep(0.5)
             GPIO.output(24, GPIO.LOW)   # Turn OFF relay for OFF condition
             send_reply("Motor turned OFF due to no current", target_address)
+            prev_motor_state = "OFF"  # Update state
 
         # ✅ Check for incoming LoRa messages
         received_data = node.receive()
@@ -90,12 +97,14 @@ try:
                         GPIO.output(24, GPIO.LOW)   # Ensure OFF relay is LOW
                         GPIO.output(23, GPIO.HIGH)  # Turn ON relay for motor
                         send_reply("Motor on", target_address)
+                        prev_motor_state = "ON"
                     elif command == "OFF":
                         GPIO.output(23, GPIO.LOW)   # Turn OFF relay for motor
                         GPIO.output(24, GPIO.HIGH)  # Turn ON relay for OFF condition
                         time.sleep(0.5)
                         GPIO.output(24, GPIO.LOW)   # Turn OFF relay for OFF condition
                         send_reply("Motor off", target_address)
+                        prev_motor_state = "OFF"
                     elif command == "STATUS":
                         status = "ON" if GPIO.input(23) else "OFF"
                         send_reply(f"Motor is {status}", target_address)
