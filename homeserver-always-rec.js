@@ -191,7 +191,7 @@ function waitForResponse(timeout) {
 }
 
 
-function startReceivingData(ws) { // Modified to filter and only send replies
+function startReceivingData(ws) {
     if (node && node.serialPort && node.serialPort.isOpen) {
         const receiveData = async () => {
             try {
@@ -199,17 +199,14 @@ function startReceivingData(ws) { // Modified to filter and only send replies
                 if (receivedData) {
                     try {
                         const response = JSON.parse(receivedData);
-                        console.log(response, "res");
-                        
-                        if (response || response.reply) { // Check if it's a valid JSON with "reply"
-                            ws.send(JSON.stringify({ type: 'received_data', data: `Reply: ${JSON.stringify(response)}` })); // Send only replies, indicate "Reply"
+                        if (response && response.reply) {
+                            ws.send(JSON.stringify({ type: 'received_data', data: `Background Message: ${JSON.stringify(response)}` }));
                         } else {
-                            console.log("[LoRa Receive - homeserver] Received data (no reply property, not sent to client):", receivedData); // Log non-reply messages on server only
-                            // Do not send to WebSocket client if no "reply" property
+                            ws.send(JSON.stringify({ type: 'received_data', data: `Background Message: ${receivedData}` }));
                         }
                     } catch (parseError) {
-                        console.error("[LoRa Receive - homeserver] Error parsing JSON data (not sent to client):", parseError, receivedData); // Log JSON parsing errors on server
-                        // Do not send to WebSocket client if JSON parsing fails
+                        console.error("Error parsing received JSON data (background):", parseError);
+                        ws.send(JSON.stringify({ type: 'received_data', data: `Background Message (Unparsed): ${receivedData}` }));
                     }
                 }
             } catch (receiveError) {
