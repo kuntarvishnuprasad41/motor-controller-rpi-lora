@@ -123,7 +123,8 @@ try:
                 send_command("ON", target_address)
             time.sleep(1)
             prev_state = "ON"
-        elif not GPIO.input(DOUT_PIN):
+        print(f"Prev State: {GPIO.input(DOUT_PIN)}")
+        if not GPIO.input(DOUT_PIN):
             if prev_state == "ON":
                 GPIO.output(23, GPIO.LOW)   # Turn OFF relay 23
                 GPIO.output(24, GPIO.HIGH)  # Turn ON relay 24
