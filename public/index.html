@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <title>Home Controller</title>
+    </head>
+
+    <body>
+        <h1>LoRa Home Controller</h1>
+
+        <div>
+            <label for="currentAddress">Current Node Address (0-65535):</label>
+            <input type="number" id="currentAddress" min="0" max="65535">
+            <button onclick="setCurrentAddress()">Set Address</button>
+        </div>
+
+        <div>
+            <label for="targetAddress">Target Node Address (0-65535):</label>
+            <input type="number" id="targetAddress" min="0" max="65535" value="30">
+        </div>
+
+        <div>
+            <button onclick="sendCommand('ON')">Motor ON</button>
+            <button onclick="sendCommand('OFF')">Motor OFF</button>
+            <button onclick="sendCommand('STATUS')">Motor STATUS</button>
+        </div>
+
+        <div id="status-display">Status: Waiting for current address to be set.</div>
+        <div id="receive-display">Received messages:</div>
+
+        <script>
+            const ws = new WebSocket('ws://localhost:3000'); // Or your server address
+
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                document.getElementById('status-display').innerText = 'Status: WebSocket connected.';
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                if (message.type === 'status' || message.type === 'error') {
+                    document.getElementById('status-display').innerText = 'Status: ' + message.message;
+                } else if (message.type === 'received_data') {
+                    const receivedDisplay = document.getElementById('receive-display');
+                    receivedDisplay.innerText += '\nReceived: ' + message.data;
+                }
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket disconnected');
+                document.getElementById('status-display').innerText = 'Status: WebSocket disconnected.';
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                document.getElementById('status-display').innerText = 'Status: WebSocket error.';
+            };
+
+            function setCurrentAddress() {
+                const address = document.getElementById('currentAddress').value;
+                ws.send(JSON.stringify({ type: 'set_current_address', address: address }));
+            }
+
+            function sendCommand(command) {
+                const targetAddress = document.getElementById('targetAddress').value;
+                if (!isNaN(targetAddress) && targetAddress >= 0 && targetAddress <= 65535) {
+                    ws.send(JSON.stringify({ type: 'set_target_address', address: targetAddress })); // Update target address on server
+                    ws.send(JSON.stringify({ type: 'command', command: command }));
+                } else {
+                    alert('Invalid target address.');
+                }
+            }
+        </script>
+    </body>
+
+</html>
