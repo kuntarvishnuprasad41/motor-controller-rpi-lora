@@ -42,7 +42,7 @@
                     document.getElementById('status-display').innerText = 'Status: ' + message.message;
                 } else if (message.type === 'received_data') { // Handle 'received_data' messages
                     const receivedDisplay = document.getElementById('receive-display');
-                    receivedDisplay.innerText += '\nReceived: ' + message.data; // Append received data to the display
+                    receivedDisplay.innerText += '\nReceived: ' + message.data.reply; // Append received data to the display
                 }
             };
 
