@@ -200,10 +200,28 @@ class SX126X {
             }
         }
 
+        
+
 
         this.m0Pin.digitalWrite(0); // GPIO.LOW
         this.m1Pin.digitalWrite(0); // GPIO.LOW
         await new Promise(resolve => setTimeout(resolve, 100)); // time.sleep(0.1)
+    }
+
+    async receive() {
+        // Implement the logic to read data from this.serialPort here
+        // and return the received data (or null if no data received).
+
+        // Example (you will need to adapt this based on your needs):
+        return new Promise((resolve, reject) => {
+            this.serialPort.once('data', (data) => {
+                resolve(data.toString('utf8')); // Or process data as needed
+            });
+            this.serialPort.once('error', (err) => {
+                reject(err);
+            });
+            // Optionally add a timeout to reject the promise if no data received within a certain time
+        });
     }
 }
 
