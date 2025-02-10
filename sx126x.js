@@ -276,6 +276,9 @@ class SX126X {
 
                 // Attempt to parse accumulated data as JSON
                 try {
+
+                    console.log('\n\n\n\n\n\n', accumulatedData, '\n\n\n\n\n');
+                    
                     const parsedJSON = JSON.parse(accumulatedData);
                     // JSON parsing successful!
                     console.log(`[SerialPort - receive()] Complete JSON Received and Parsed:`, parsedJSON);
