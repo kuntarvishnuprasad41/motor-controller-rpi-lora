@@ -89,12 +89,14 @@ try:
                         
                         # GPIO.output(23, GPIO.LOW)  # Turn ON relay 23
                         send_reply("Motor on", target_address)  # Send "Motor on" message
+                        prev_state = "ON"
                     elif command == "OFF":
                         GPIO.output(23, GPIO.LOW)   # Turn OFF relay 23
                         GPIO.output(24, GPIO.HIGH)  # Turn ON relay 24
                         time.sleep(0.5)
                         GPIO.output(24, GPIO.LOW)  # Turn ON relay 24
                         send_reply("Motor off", target_address) # Send "Motor off" message
+                        prev_state = "OFF"
                     elif command == "STATUS":
                         # Get status (ON/OFF) and send it.  This will be the most useful.
                         status = "ON" if GPIO.input(23) else "OFF"
