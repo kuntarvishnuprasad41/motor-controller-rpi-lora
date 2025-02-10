@@ -277,7 +277,9 @@ class SX126X {
                 // Attempt to parse accumulated data as JSON
                 try {
 
-                    const cleanData = accumulatedData.replace(/[\uFFFD\u0000-\u001F]/g, '');
+                    // const cleanData = accumulatedData.replace(/[\uFFFD\u0000-\u001F]/g, '');
+                    const cleanData = accumulatedData.replace(/^[^{]+/, ''); 
+
                     accumulatedData = cleanData; // Clean up data before parsing
 
                     console.log('\n\n\n\n\n\n', accumulatedData, '\n\n\n\n\n');
