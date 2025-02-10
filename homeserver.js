@@ -26,8 +26,12 @@ async function main() {
 
 
     // const node = new SX126X("/dev/ttyS0", 433, current_address, 22, false); // Replace "/dev/ttyS0" if needed
-    const node = new SX126X(null, 433, current_address, 22, false); // Pass null for serial_num in constructor
-    node.beginSerial("/dev/ttyS0"); // Initialize serial port AFTER getting current_address
+    // const node = new SX126X(null, 433, current_address, 22, false); // Pass null for serial_num in constructor
+    // node.beginSerial("/dev/ttyS0"); // Initialize serial port AFTER getting current_address
+    const node = new SX126X(null, 433, current_address, 22, false); // Pass null for serial_num in constructor (not used anymore)
+    node.beginSerial("/dev/ttyS0"); // Initialize serial port
+    node.set(433, current_address, 22, false); // Call set AFTER serial port is initialized
+
 
 
     function send_command(command, target_address) {

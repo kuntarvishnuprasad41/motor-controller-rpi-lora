@@ -1,9 +1,9 @@
 class SX126X {
-    constructor(serial_num, freq, addr, power, rssi) { // Removed serial_num from constructor args
+    constructor(serial_num, freq, addr, power, rssi) { // serial_num is still here for now, but not used in constructor
         this.rssi = rssi;
         this.addr = addr;
         this.freq = freq;
-        this.serial_n = serial_num; // You can keep this if you need to store serial_num, but it's not used for init here
+        this.serial_n = serial_num;
         this.power = power;
         this.send_to = addr;
 
@@ -43,8 +43,7 @@ class SX126X {
         this.SX126X_Power_10dBm = 0x03;
 
         this.initializeGPIO();
-        // this.initializeSerial(serial_num);  <-- REMOVED from constructor
-        this.set(freq, addr, power, rssi);
+        // this.set(freq, addr, power, rssi);  <-- REMOVED from constructor
     }
 
     beginSerial(serial_num) { // Renamed method
@@ -135,6 +134,7 @@ class SX126X {
     async set(freq, addr, power, rssi, air_speed = 2400,
         net_id = 0, buffer_size = 240, crypt = 0,
         relay = false, lbt = false, wor = false) {
+            
         this.send_to = addr;
         this.addr = addr;
 
