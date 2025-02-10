@@ -1,250 +1,216 @@
-const { Gpio } = require('onoff');
-const { SerialPort } = require('serialport');
-const { promisify } = require('util');
-const sleep = promisify(setTimeout);
-
-class SX126x {
-    constructor(serialPath, freq, addr, power, rssi) {
-        this.M0 = new Gpio(22, 'out');
-        this.M1 = new Gpio(27, 'out');
-        this.serialPath = serialPath;
-        this.freq = freq;
-        this.addr = addr;
-        this.power = power;
+class SX126X {
+    constructor(serial_num, freq, addr, power, rssi) {
         this.rssi = rssi;
-        this.sendTo = addr;
+        this.addr = addr;
+        this.freq = freq;
+        this.serial_n = serial_num;
+        this.power = power;
+        this.send_to = addr;
 
-        // Serial port configuration
-        this.serial = new SerialPort({
-            path: serialPath,
+        this.M0 = 22; // Assuming GPIO pin 22 for M0
+        this.M1 = 27; // Assuming GPIO pin 27 for M1
+
+        this.cfg_reg = [0xC2, 0x00, 0x09, 0x00, 0x00, 0x00, 0x62, 0x00, 0x17, 0x00, 0x00, 0x00];
+        this.get_reg = Buffer.alloc(12); // Node.js Buffer for bytes
+        this.serialPort = null; // Will be initialized later
+
+        this.SX126X_UART_BAUDRATE_1200 = 0x00;
+        this.SX126X_UART_BAUDRATE_2400 = 0x20;
+        this.SX126X_UART_BAUDRATE_4800 = 0x40;
+        this.SX126X_UART_BAUDRATE_9600 = 0x60;
+        this.SX126X_UART_BAUDRATE_19200 = 0x80;
+        this.SX126X_UART_BAUDRATE_38400 = 0xA0;
+        this.SX126X_UART_BAUDRATE_57600 = 0xC0;
+        this.SX126X_UART_BAUDRATE_115200 = 0xE0;
+
+        this.SX126X_AIR_SPEED_300bps = 0x00;
+        this.SX126X_AIR_SPEED_1200bps = 0x01;
+        this.SX126X_AIR_SPEED_2400bps = 0x02;
+        this.SX126X_AIR_SPEED_4800bps = 0x03;
+        this.SX126X_AIR_SPEED_9600bps = 0x04;
+        this.SX126X_AIR_SPEED_19200bps = 0x05;
+        this.SX126X_AIR_SPEED_38400bps = 0x06;
+        this.SX126X_AIR_SPEED_62500bps = 0x07;
+
+        this.SX126X_PACKAGE_SIZE_240_BYTE = 0x00;
+        this.SX126X_PACKAGE_SIZE_128_BYTE = 0x40;
+        this.SX126X_PACKAGE_SIZE_64_BYTE = 0x80;
+        this.SX126X_PACKAGE_SIZE_32_BYTE = 0xC0;
+
+        this.SX126X_Power_22dBm = 0x00;
+        this.SX126X_Power_17dBm = 0x01;
+        this.SX126X_Power_13dBm = 0x02;
+        this.SX126X_Power_10dBm = 0x03;
+
+        this.initializeGPIO();
+        this.initializeSerial(serial_num);
+        this.set(freq, addr, power, rssi); // Initial set call
+    }
+
+    async initializeGPIO() {
+        const pigpio = require('pigpio').Gpio; // Import pigpio library
+        this.m0Pin = new pigpio(this.M0, { mode: pigpio.OUTPUT });
+        this.m1Pin = new pigpio(this.M1, { mode: pigpio.OUTPUT });
+
+        this.m0Pin.digitalWrite(0); // GPIO.LOW in pigpio (0)
+        this.m1Pin.digitalWrite(1); // GPIO.HIGH in pigpio (1)
+    }
+
+    initializeSerial(serial_num) {
+        const SerialPort = require('serialport');
+        this.serialPort = new SerialPort(serial_num, { // e.g., '/dev/ttyS0'
             baudRate: 9600,
-            autoOpen: false
         });
 
-        this.cfgReg = Buffer.from([0xC2, 0x00, 0x09, 0x00, 0x00, 0x00, 0x62, 0x00, 0x17, 0x00, 0x00, 0x00]);
-
-        // Constants
-        this.UART_BAUDRATES = {
-            1200: 0x00,
-            2400: 0x20,
-            4800: 0x40,
-            9600: 0x60,
-            19200: 0x80,
-            38400: 0xA0,
-            57600: 0xC0,
-            115200: 0xE0
-        };
-
-        this.AIR_SPEEDS = {
-            300: 0x00,
-            1200: 0x01,
-            2400: 0x02,
-            4800: 0x03,
-            9600: 0x04,
-            19200: 0x05,
-            38400: 0x06,
-            62500: 0x07
-        };
-
-        this.POWER_LEVELS = {
-            22: 0x00,
-            17: 0x01,
-            13: 0x02,
-            10: 0x03
-        };
-
-        this.BUFFER_SIZES = {
-            240: 0x00,
-            128: 0x40,
-            64: 0x80,
-            32: 0xC0
-        };
-    }
-
-    async initialize() {
-        try {
-            // Initialize GPIO
-            await this.M0.write(0);
-            await this.M1.write(1);
-
-            // Open serial port
-            await new Promise((resolve, reject) => {
-                this.serial.open(err => err ? reject(err) : resolve());
+        this.serialPort.on('open', () => {
+            this.serialPort.flush(() => { // Flush input buffer on open
+                console.log('Serial port opened and input flushed');
             });
+        });
 
-            await this.configureModule();
-            return true;
-        } catch (err) {
-            console.error('Initialization failed:', err);
-            return false;
-        }
+        this.serialPort.on('error', (err) => {
+            console.error("Serial port error:", err);
+        });
+
     }
 
-    async configureModule(
-        freq = this.freq,
-        addr = this.addr,
-        power = this.power,
-        rssi = this.rssi,
-        airSpeed = 2400,
-        netId = 0,
-        bufferSize = 240,
-        crypt = 0
-    ) {
-        try {
-            await this.M0.write(0);
-            await this.M1.write(1);
-            await sleep(100);
 
-            const lowAddr = addr & 0xFF;
-            const highAddr = (addr >> 8) & 0xFF;
-            const netIdTemp = netId & 0xFF;
-            const freqTemp = freq > 850 ? freq - 850 : freq - 410;
+    air_speed_cal(air_speed) {
+        // TODO: Implement air speed calculation logic (refer to Python code if available)
+        // This is a placeholder, you'll need to create the conversion logic
+        if (air_speed === 300) return this.SX126X_AIR_SPEED_300bps;
+        else if (air_speed === 1200) return this.SX126X_AIR_SPEED_1200bps;
+        else if (air_speed === 2400) return this.SX126X_AIR_SPEED_2400bps;
+        else if (air_speed === 4800) return this.SX126X_AIR_SPEED_4800bps;
+        else if (air_speed === 9600) return this.SX126X_AIR_SPEED_9600bps;
+        else if (air_speed === 19200) return this.SX126X_AIR_SPEED_19200bps;
+        else if (air_speed === 38400) return this.SX126X_AIR_SPEED_38400bps;
+        else if (air_speed === 62500) return this.SX126X_AIR_SPEED_62500bps;
+        else return this.SX126X_AIR_SPEED_2400bps; // Default to 2400 if not matched
+    }
 
-            const airSpeedTemp = this.AIR_SPEEDS[airSpeed];
-            const bufferSizeTemp = this.BUFFER_SIZES[bufferSize];
-            const powerTemp = this.POWER_LEVELS[power];
-            const rssiTemp = rssi ? 0x80 : 0x00;
+    buffer_size_cal(buffer_size) {
+        // TODO: Implement buffer size calculation logic
+        if (buffer_size === 240) return this.SX126X_PACKAGE_SIZE_240_BYTE;
+        else if (buffer_size === 128) return this.SX126X_PACKAGE_SIZE_128_BYTE;
+        else if (buffer_size === 64) return this.SX126X_PACKAGE_SIZE_64_BYTE;
+        else if (buffer_size === 32) return this.SX126X_PACKAGE_SIZE_32_BYTE;
+        else return this.SX126X_PACKAGE_SIZE_240_BYTE; // Default to 240
+    }
 
-            this.cfgReg[3] = highAddr;
-            this.cfgReg[4] = lowAddr;
-            this.cfgReg[5] = netIdTemp;
-            this.cfgReg[6] = this.UART_BAUDRATES[9600] + airSpeedTemp;
-            this.cfgReg[7] = bufferSizeTemp + powerTemp + 0x20;
-            this.cfgReg[8] = freqTemp;
-            this.cfgReg[9] = 0x03 + rssiTemp;
-            this.cfgReg[10] = (crypt >> 8) & 0xFF;
-            this.cfgReg[11] = crypt & 0xFF;
+    power_cal(power) {
+        // TODO: Implement power calculation logic
+        if (power === 22) return this.SX126X_Power_22dBm;
+        else if (power === 17) return this.SX126X_Power_17dBm;
+        else if (power === 13) return this.SX126X_Power_13dBm;
+        else if (power === 10) return this.SX126X_Power_10dBm;
+        else return this.SX126X_Power_22dBm; // Default to 22dBm
+    }
 
-            let configSuccess = false;
-            for (let i = 0; i < 2; i++) {
-                await this.serialWrite(this.cfgReg);
-                await sleep(200);
 
-                const response = await this.serialRead();
-                if (response && response[0] === 0xC1) {
-                    configSuccess = true;
-                    break;
+    async set(freq, addr, power, rssi, air_speed = 2400,
+        net_id = 0, buffer_size = 240, crypt = 0,
+        relay = false, lbt = false, wor = false) {
+        this.send_to = addr;
+        this.addr = addr;
+
+        this.m0Pin.digitalWrite(0); // GPIO.LOW
+        this.m1Pin.digitalWrite(1); // GPIO.HIGH
+        await new Promise(resolve => setTimeout(resolve, 100)); // time.sleep(0.1)
+
+        let low_addr = addr & 0xff;
+        let high_addr = (addr >> 8) & 0xff;
+        let net_id_temp = net_id & 0xff;
+        let freq_temp;
+        if (freq > 850) {
+            freq_temp = freq - 850;
+        } else if (freq > 410) {
+            freq_temp = freq - 410;
+        } else {
+            freq_temp = freq; // Or handle error/default case
+        }
+
+
+        let air_speed_temp = this.air_speed_cal(air_speed);
+        let buffer_size_temp = this.buffer_size_cal(buffer_size);
+        let power_temp = this.power_cal(power);
+
+        let rssi_temp = rssi ? 0x80 : 0x00; // Conditional for RSSI
+
+        let l_crypt = crypt & 0xff;
+        let h_crypt = (crypt >> 8) & 0xff;
+
+        this.cfg_reg[3] = high_addr;
+        this.cfg_reg[4] = low_addr;
+        this.cfg_reg[5] = net_id_temp;
+        this.cfg_reg[6] = this.SX126X_UART_BAUDRATE_9600 + air_speed_temp;
+        this.cfg_reg[7] = buffer_size_temp + power_temp + 0x20;
+        this.cfg_reg[8] = freq_temp;
+        this.cfg_reg[9] = 0x03 + rssi_temp;
+        this.cfg_reg[10] = h_crypt;
+        this.cfg_reg[11] = l_crypt;
+
+
+        const configBytes = Buffer.from(this.cfg_reg); // Convert array to Buffer
+
+        for (let i = 0; i < 2; i++) {
+            this.serialPort.write(configBytes, (err) => { // Send config command
+                if (err) {
+                    console.log('Serial port write error:', err);
+                    return; // Exit if write fails
                 }
-            }
-
-            if (!configSuccess) throw new Error('Module configuration failed');
-
-            await this.M0.write(0);
-            await this.M1.write(0);
-            await sleep(100);
-            return true;
-
-        } catch (err) {
-            console.error('Configuration error:', err);
-            return false;
-        }
-    }
-
-    async send(data) {
-        try {
-            await this.M0.write(0);
-            await this.M1.write(0);
-            await sleep(100);
-
-            const lowAddr = this.addr & 0xFF;
-            const highAddr = (this.addr >> 8) & 0xFF;
-            const buffer = Buffer.concat([
-                Buffer.from([highAddr, lowAddr]),
-                Buffer.from(data)
-            ]);
-
-            await this.serialWrite(buffer);
-            await sleep(100);
-            return true;
-        } catch (err) {
-            console.error('Send error:', err);
-            return false;
-        }
-    }
-
-    async receive() {
-        try {
-            const data = await this.serialRead();
-            if (!data || data.length < 3) return null;
-
-            const nodeAddress = (data[0] << 8) + data[1];
-            const rssiValue = 256 - data[data.length - 1];
-            const message = data.slice(2, -1).toString('utf-8');
-
-            let jsonData;
-            try {
-                jsonData = JSON.parse(message);
-            } catch {
-                jsonData = message;
-            }
-
-            return {
-                address: nodeAddress,
-                message: jsonData,
-                rssi: rssiValue,
-                timestamp: new Date().toISOString()
-            };
-        } catch (err) {
-            console.error('Receive error:', err);
-            return null;
-        }
-    }
-
-    async getChannelRSSI() {
-        try {
-            await this.M0.write(0);
-            await this.M1.write(0);
-            await sleep(100);
-
-            await this.serialWrite(Buffer.from([0xC0, 0xC1, 0xC2, 0xC3, 0x00, 0x02]));
-            await sleep(500);
-
-            const response = await this.serialRead();
-            if (response && response[0] === 0xC1) {
-                return 256 - response[3];
-            }
-            return null;
-        } catch (err) {
-            console.error('RSSI error:', err);
-            return null;
-        }
-    }
-
-    // Helper methods
-    serialWrite(data) {
-        return new Promise((resolve, reject) => {
-            this.serial.write(data, (err) => {
-                if (err) reject(err);
-                else resolve();
             });
-        });
-    }
 
-    serialRead(timeout = 1000) {
-        return new Promise((resolve) => {
-            const timer = setTimeout(() => {
-                this.serial.removeListener('data', handler);
-                resolve(null);
-            }, timeout);
+            await new Promise(resolve => setTimeout(resolve, 200)); // time.sleep(0.2)
 
-            const handler = (data) => {
-                clearTimeout(timer);
-                resolve(data);
-            };
+            if (this.serialPort.readable) { // Check if data is waiting (using 'readable' event might be better for non-blocking)
+                await new Promise(resolve => setTimeout(resolve, 100)); // time.sleep(0.1) - small delay before reading
 
-            this.serial.once('data', handler);
-        });
-    }
+                const responseBuffer = this.serialPort.read(this.serialPort.bytesToRead); // Read available data
+                if (responseBuffer && responseBuffer.length > 0) {
+                    if (responseBuffer[0] === 0xC1) {
+                        // console.log("parameters setting is :", configBytes); // If you want to log config
+                        // console.log("parameters return is  :", responseBuffer); // If you want to log response
+                        // Success - you can add more detailed logging if needed
+                    } else {
+                        // console.log("parameters setting fail :", responseBuffer); // If you want to log failure response
+                        // Setting failed - you can add more detailed error handling
+                    }
+                    break; // Exit loop on response (success or fail)
+                }
+            } else {
+                console.log("trying again!");
+                await new Promise(resolve => {
+                    this.serialPort.flush(() => { // Flush input buffer before retry
+                        console.log('\x1b[1A\r'); // ANSI escape code - might need to handle this differently in Node.js if needed in console
+                        if (i === 1) {
+                            console.log("setting fail, press Esc to exit and run again");
+                            setTimeout(resolve, 2000); // time.sleep(2)
+                            console.log('\x1b[1A\r'); // ANSI escape code - might need to handle this differently in Node.js if needed in console
+                        } else {
+                            resolve();
+                        }
+                    });
+                });
 
-    async cleanup() {
-        try {
-            await this.M0.unexport();
-            await this.M1.unexport();
-            await new Promise((resolve) => this.serial.close(resolve));
-        } catch (err) {
-            console.error('Cleanup error:', err);
+                await new Promise(resolve => setTimeout(resolve, 200)); // time.sleep(0.2)
+            }
         }
+
+
+        this.m0Pin.digitalWrite(0); // GPIO.LOW
+        this.m1Pin.digitalWrite(0); // GPIO.LOW
+        await new Promise(resolve => setTimeout(resolve, 100)); // time.sleep(0.1)
     }
 }
 
-module.exports = SX126x;
+// Example of how to use it (you'd need to provide the correct serial port)
+async function main() {
+    const loraModule = new SX126X("/dev/ttyS0", 868, 0x1234, 22, false); // Example parameters
+    // You can add more function calls to loraModule object here to use other functionalities
+    console.log("LoRa module initialized and configured.");
+}
+
+main();
+
+module.exports = SX126X;

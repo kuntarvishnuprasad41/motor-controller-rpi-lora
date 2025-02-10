@@ -1,267 +1,117 @@
-// server.js (Node.js with Express and WebSocket)
+const SX126X = require('./sx126x'); // Assuming you saved the converted class in sx126x.js
+const readline = require('readline');
 
-const express = require('express');
-const http = require('http');
-const WebSocket = require('ws');
-const SerialPort = require('serialport');
-const { ReadlineParser } = require('@serialport/parser-readline');
-const { DelimiterParser } = require('@serialport/parser-delimiter'); //Probably don't need this.
-const { Buffer } = require('node:buffer');
+let oldSettings; // No direct equivalent to termios in Node.js for raw mode in this simple example
 
-//  sx126x class (Node.js compatible)
-class sx126x {
-    constructor(serial_num, freq, addr, power, rssi) {
-        this.M0 = 22;
-        this.M1 = 27;
-        this.cfg_reg = [0xC2, 0x00, 0x09, 0x00, 0x00, 0x00, 0x62, 0x00, 0x17, 0x00, 0x00, 0x00];
-        this.get_reg = Buffer.alloc(12); // Use Buffer in Node.js
-        this.rssi = rssi;
-        this.addr = addr;
-        this.freq = freq;
-        this.serial_n = serial_num;
-        this.power = power;
-        this.send_to = addr;
-        this.addr_temp = 0;
-        this.air_speed = 2400;
+async function main() {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
 
-        this.SX126X_UART_BAUDRATE_1200 = 0x00;
-        this.SX126X_UART_BAUDRATE_2400 = 0x20;
-        this.SX126X_UART_BAUDRATE_4800 = 0x40;
-        this.SX126X_UART_BAUDRATE_9600 = 0x60;
-        this.SX126X_UART_BAUDRATE_19200 = 0x80;
-        this.SX126X_UART_BAUDRATE_38400 = 0xA0;
-        this.SX126X_UART_BAUDRATE_57600 = 0xC0;
-        this.SX126X_UART_BAUDRATE_115200 = 0xE0;
-
-        this.SX126X_AIR_SPEED_300bps = 0x00;
-        this.SX126X_AIR_SPEED_1200bps = 0x01;
-        this.SX126X_AIR_SPEED_2400bps = 0x02;
-        this.SX126X_AIR_SPEED_4800bps = 0x03;
-        this.SX126X_AIR_SPEED_9600bps = 0x04;
-        this.SX126X_AIR_SPEED_19200bps = 0x05;
-        this.SX126X_AIR_SPEED_38400bps = 0x06;
-        this.SX126X_AIR_SPEED_62500bps = 0x07;
-
-        this.SX126X_PACKAGE_SIZE_240_BYTE = 0x00;
-        this.SX126X_PACKAGE_SIZE_128_BYTE = 0x40;
-        this.SX126X_PACKAGE_SIZE_64_BYTE = 0x80;
-        this.SX126X_PACKAGE_SIZE_32_BYTE = 0xC0;
-
-        this.SX126X_Power_22dBm = 0x00;
-        this.SX126X_Power_17dBm = 0x01;
-        this.SX126X_Power_13dBm = 0x02;
-        this.SX126X_Power_10dBm = 0x03;
-
-        // Mock GPIO for non-Raspberry Pi environments (for testing)
-        this.M0_gpio = { writeSync: (value) => console.log(`M0 set to ${value}`) };
-        this.M1_gpio = { writeSync: (value) => console.log(`M1 set to ${value}`) };
-        // Setup serial port
-        this.port = new SerialPort.SerialPort({
-            path: serial_num,
-            baudRate: 9600,
-            dataBits: 8,
-            stopBits: 1,
-            parity: 'none',
-        });
-
-        this.parser = this.port.pipe(new ReadlineParser({ delimiter: '\r\n' }));
-        this.set(freq, addr, power, rssi);
-
-        this.port.on('error', function (err) {
-            console.error('SerialPort Error: ', err.message);
-        });
-    }
-    set(freq, addr, power, rssi, air_speed = 2400, net_id = 0, buffer_size = 240, crypt = 0, relay = false, lbt = false, wor = false) {
-        this.send_to = addr;
-        this.addr = addr;
-        // We should pull up the M1 pin when sets the module
-        this.M0_gpio.writeSync(0);
-        this.M1_gpio.writeSync(1);
-
-        setTimeout(() => {
-            let low_addr = addr & 0xff;
-            let high_addr = addr >> 8 & 0xff;
-            let net_id_temp = net_id & 0xff;
-            let freq_temp;
-            if (freq > 850) {
-                freq_temp = freq - 850;
-            } else if (freq > 410) {
-                freq_temp = freq - 410;
+    console.log("Enter curr node address (0-65535):");
+    let current_address;
+    while (!current_address) {
+        const addressInput = await new Promise(resolve => rl.question('', resolve));
+        try {
+            current_address = parseInt(addressInput);
+            if (isNaN(current_address) || current_address < 0 || current_address > 65535) {
+                console.log("Invalid input. Please enter a number between 0 and 65535:");
+                current_address = undefined; // Reset to loop again
             }
+        } catch (e) {
+            console.log("Invalid input. Please enter a number between 0 and 65535:");
+        }
+    }
 
-            let air_speed_temp = this.air_speed_cal(air_speed);
-            let buffer_size_temp = this.buffer_size_cal(buffer_size);
-            let power_temp = this.power_cal(power);
-            let rssi_temp = rssi ? 0x80 : 0x00;
-            let l_crypt = crypt & 0xff;
-            let h_crypt = crypt >> 8 & 0xff;
 
-            this.cfg_reg[3] = high_addr;
-            this.cfg_reg[4] = low_addr;
-            this.cfg_reg[5] = net_id_temp;
-            this.cfg_reg[6] = this.SX126X_UART_BAUDRATE_9600 + air_speed_temp;
-            this.cfg_reg[7] = buffer_size_temp + power_temp + 0x20;
-            this.cfg_reg[8] = freq_temp;
-            this.cfg_reg[9] = 0x03 + rssi_temp;
-            this.cfg_reg[10] = h_crypt;
-            this.cfg_reg[11] = l_crypt;
+    const node = new SX126X("/dev/ttyS0", 433, current_address, 22, false); // Replace "/dev/ttyS0" if needed
 
-            // this.port.flush();
-            //console.log(this.cfg_reg)
-            for (let i = 0; i < 2; i++) {
-                this.port.write(Buffer.from(this.cfg_reg));
+    function send_command(command, target_address) {
+        const timestamp = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, ''); // "YYYY-MM-DD HH:MM:SS" format
+        const message = { command: command, time: timestamp };
+        const json_message = JSON.stringify(message);
 
+        const original_address = node.addr;
+        node.addr_temp = node.addr;
+        node.set(node.freq, target_address, node.power, node.rssi)
+            .then(() => {
+                node.send(json_message);
+                return new Promise(resolve => setTimeout(resolve, 200)); // time.sleep(0.2) as a Promise
+            })
+            .then(() => {
+                return node.set(node.freq, original_address, node.power, node.rssi);
+            })
+            .then(() => {
+                console.log(`Command sent to ${target_address}.`);
+            })
+            .catch(error => {
+                console.error("Error in send_command:", error); // Handle errors in promise chain
+            });
+    }
+
+
+    console.log("Enter target node address (0-65535):");
+    let target_address;
+    while (!target_address) {
+        const addressInput = await new Promise(resolve => rl.question('', resolve));
+        try {
+            target_address = parseInt(addressInput);
+            if (isNaN(target_address) || target_address < 0 || target_address > 65535) {
+                console.log("Invalid input. Please enter a number between 0 and 65535:");
+                target_address = undefined; // Reset to loop again
             }
-            this.M0_gpio.writeSync(0);
-            this.M1_gpio.writeSync(0);
-        }, 100); // Delay for GPIO setting
+        } catch (e) {
+            console.log("Invalid input. Please enter a number between 0 and 65535.");
+        }
     }
 
-    air_speed_cal(airSpeed) {
-        const air_speed_c = { // Corrected:  Define as a JavaScript object
-            1200: this.SX126X_AIR_SPEED_1200bps,
-            2400: this.SX126X_AIR_SPEED_2400bps,
-            4800: this.SX126X_AIR_SPEED_4800bps,
-            9600: this.SX126X_AIR_SPEED_9600bps,
-            19200: this.SX126X_AIR_SPEED_19200bps,
-            38400: this.SX126X_AIR_SPEED_38400bps,
-            62500: this.SX126X_AIR_SPEED_62500bps
-        };
-        return air_speed_c[airSpeed] !== undefined ? air_speed_c[airSpeed] : null; //Corrected: Use bracket notation for object access
-    }
-
-    power_cal(power) {
-        const power_c = { // Corrected: Define as JavaScript object
-            22: this.SX126X_Power_22dBm,
-            17: this.SX126X_Power_17dBm,
-            13: this.SX126X_Power_13dBm,
-            10: this.SX126X_Power_10dBm
-        };
-        return power_c[power] !== undefined ? power_c[power] : null; // Corrected: Use bracket notation
-    }
-
-    buffer_size_cal(bufferSize) {
-        const buffer_size_c = { // Corrected: Define as JavaScript object
-            240: this.SX126X_PACKAGE_SIZE_240_BYTE,
-            128: this.SX126X_PACKAGE_SIZE_128_BYTE,
-            64: this.SX126X_PACKAGE_SIZE_64_BYTE,
-            32: this.SX126X_PACKAGE_SIZE_32_BYTE
-        };
-        return buffer_size_c[bufferSize] !== undefined ? buffer_size_c[bufferSize] : null; // Corrected: Use bracket notation
-    }
-
-    get_settings() {
-        // NOT FULLY IMPLEMENTED - Needs serial port read handling
-    }
-
-    send(data) {
-        this.M1_gpio.writeSync(0);
-        this.M0_gpio.writeSync(0);
-        setTimeout(() => {
-            let l_addr = this.addr_temp & 0xff;
-            let h_addr = this.addr_temp >> 8 & 0xff;
-            const buffer = Buffer.from([h_addr, l_addr, ...data]);
-            this.port.write(buffer);
-        }, 100);
-    }
+    console.log("Press \x1b[1;32m1\x1b[0m to send Motor ON command");
+    console.log("Press \x1b[1;32m2\x1b[0m to send Motor OFF command");
+    console.log("Press \x1b[1;32m3\x1b[0m to send Motor STATUS request");
+    console.log("Press Esc to exit (not directly supported in readline, use Ctrl+C to exit)");
 
 
-    receive(callback) {
-        this.parser.on('data', (data) => {
-            console.log("Raw data from serial:", data);
+    const stdin = process.stdin;
+    stdin.setRawMode(true); // attempt to set raw mode - might behave differently from python tty.setcbreak
+    stdin.resume();
+    stdin.setEncoding('utf8');
 
-            try {
-                const buffer = Buffer.from(data)
-                if (buffer.length < 3) {
-                    console.log("Incomplete packet");
-                    return;
-                }
-                const node_address = (buffer[0] << 8) + buffer[1];
-                const rssi = 256 - buffer[buffer.length - 1];
-                const message_bytes = buffer.slice(2, -1);
-                const message_str = message_bytes.toString('utf-8');
-                let json_message;
-                const start = message_str.indexOf('{');
-                const end = message_str.lastIndexOf('}') + 1;
 
-                if (start !== -1 && end !== -1) {
-                    json_message = message_str.substring(start, end);
-                    console.log(json_message)
-                    const time = new Date().toISOString();
-                    callback({ time, message: json_message, rssi, node_address }); // Pass to callback
+    stdin.on('data', async function (key) {
+        // Check for incoming data first - Placeholder as receive() needs to be implemented in SX126X class
+        const received_data = await node.receive(); // Assuming you will implement receive() in SX126X class
+        if (received_data) {
+            const current_time = new Date().toISOString().replace(/T/, ' ').replace(/\..+/, '');
+            console.log(`[${current_time}] Received: ${received_data}`);
+        }
 
-                }
-                else {
-                    console.log("No JSON found in message");
-                    console.log(message_str)
-                }
-            }
-            catch (error) {
-                console.error("Error processing received data:", error);
-            }
-        });
-    }
 
-    get_channel_rssi() {
-        // NOT FULLY IMPLEMENTED - Needs serial port read handling
-    }
+        if (key === '\x1b') { // ESC key
+            console.log('Exiting...');
+            rl.close();
+            process.exit();
+        }
+
+        if (key === '1') {
+            send_command("ON", target_address);
+        } else if (key === '2') {
+            send_command("OFF", target_address);
+        } else if (key === '3') {
+            send_command("STATUS", target_address);
+        }
+
+        // Small delay - not strictly needed with event-driven Node.js but for similar behavior
+        await new Promise(resolve => setTimeout(resolve, 10)); // time.sleep(0.01) equivalent
+    });
+
+
+    console.log("Listening for commands and messages... (Press Ctrl+C or Esc to exit)");
+
+
 }
 
-
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
-
-// Serve static files from the 'public' directory
-app.use(express.static('public')); // Put your React build files in a 'public' folder
-
-const PORT = 8080;
-
-// Replace with your actual serial port configuration
-const node = new sx126x("/dev/ttyS0", 433, 2, 22, false);
-
-wss.on('connection', (ws) => {
-    console.log('Client connected');
-
-    // Listen for serial data and send to WebSocket clients
-    node.receive((data) => {
-        console.log("Sending to WS:", data);
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify(data));
-        }
-    });
-
-
-    ws.on('message', (message) => {
-        try {
-            const parsedMessage = JSON.parse(message);
-            const { command, targetAddress } = parsedMessage;
-
-            if (command && targetAddress) {
-                const timestamp = new Date().toISOString();
-                const message = { command, time: timestamp };
-                const json_message = JSON.stringify(message);
-                const original_address = node.addr;
-                node.addr_temp = node.addr;
-                node.set(node.freq, targetAddress, node.power, node.rssi);
-                //console.log(json_message)
-                node.send(Buffer.from(json_message, 'utf8'));
-                node.set(node.freq, original_address, node.power, node.rssi);
-                //console.log(`Command sent to ${targetAddress}.`);
-
-            } else {
-                console.warn('Received invalid message:', message);
-            }
-        } catch (error) {
-            console.error('Error processing message:', error);
-        }
-    });
-
-    ws.on('close', () => {
-        console.log('Client disconnected');
-    });
-});
-
-server.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
+main().catch(error => {
+    console.error("Unhandled error:", error);
+    process.exit(1);
 });
