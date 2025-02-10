@@ -121,6 +121,8 @@ try:
                 GPIO.output(24, GPIO.LOW)   # Turn OFF relay 24 (ensure only one is on)
                 GPIO.output(23, GPIO.HIGH)
                 send_command("ON", target_address)
+                print(f"Inside: {GPIO.input(DOUT_PIN)}")
+
             time.sleep(1)
             prev_state = "ON"
         print(f"Prev State: {GPIO.input(DOUT_PIN)}")
