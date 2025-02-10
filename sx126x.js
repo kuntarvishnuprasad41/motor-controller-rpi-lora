@@ -60,7 +60,8 @@ class SX126X {
         // const SerialPort = require('serialport');
         const SerialPort = require('serialport').SerialPort;
 
-        this.serialPort = new SerialPort(serial_num, { // e.g., '/dev/ttyS0'
+        this.serialPort = new SerialPort(  { // e.g., '/dev/ttyS0'
+            path: serial_num,
             baudRate: 9600,
         });
 
