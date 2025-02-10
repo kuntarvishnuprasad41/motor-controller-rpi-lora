@@ -199,7 +199,7 @@ function startReceivingData(ws) { // Modified to filter and only send replies
                 if (receivedData) {
                     try {
                         const response = JSON.parse(receivedData);
-                        console.log(response);
+                        console.log(response, "res");
                         
                         if (response || response.reply) { // Check if it's a valid JSON with "reply"
                             ws.send(JSON.stringify({ type: 'received_data', data: `Reply: ${JSON.stringify(response)}` })); // Send only replies, indicate "Reply"
