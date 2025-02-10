@@ -123,16 +123,16 @@ try:
                 send_command("ON", target_address)
             time.sleep(1)
             prev_state = "ON"
-        # elif not GPIO.input(DOUT_PIN):
-        #     if prev_state == "ON":
-        #         GPIO.output(23, GPIO.LOW)   # Turn OFF relay 23
-        #         GPIO.output(24, GPIO.HIGH)  # Turn ON relay 24
-        #         time.sleep(0.5)
-        #         GPIO.output(24, GPIO.LOW)  # Turn ON relay 24
-        #         send_reply("Motor off", target_address) # Send "Motor off" message
-        #         # on_from_remote = False
-        #         prev_state = "OFF"
-        #         time.sleep(1)
+        elif not GPIO.input(DOUT_PIN):
+            if prev_state == "ON":
+                GPIO.output(23, GPIO.LOW)   # Turn OFF relay 23
+                GPIO.output(24, GPIO.HIGH)  # Turn ON relay 24
+                time.sleep(0.5)
+                GPIO.output(24, GPIO.LOW)  # Turn ON relay 24
+                send_reply("Motor off", target_address) # Send "Motor off" message
+                # on_from_remote = False
+                prev_state = "OFF"
+                time.sleep(1)
                 # prev_state = "ON"
             # send_command("OFF", target_address)
             # time.sleep(1)
