@@ -199,7 +199,7 @@ function startReceivingData(ws) { // Modified to filter and only send replies
                 if (receivedData) {
                     try {
                         const response = JSON.parse(receivedData);
-                        if (response && response.reply) { // Check if it's a valid JSON with "reply"
+                        if (response || response.reply) { // Check if it's a valid JSON with "reply"
                             ws.send(JSON.stringify({ type: 'received_data', data: `Reply: ${JSON.stringify(response)}` })); // Send only replies, indicate "Reply"
                         } else {
                             console.log("[LoRa Receive - homeserver] Received data (no reply property, not sent to client):", receivedData); // Log non-reply messages on server only
