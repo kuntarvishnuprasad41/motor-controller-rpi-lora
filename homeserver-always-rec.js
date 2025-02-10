@@ -9,8 +9,7 @@ const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
+app.use(express.json()); //  Keep JSON parsing middleware
 
 let node;
 let currentAddress;
@@ -20,24 +19,61 @@ let receivingDataStarted = false;
 wss.on('connection', ws => {
     console.log('Client connected');
 
+    if (!node) { // Initialize LoRa module only once per server start, if not already initialized
+        console.log("[LoRa Init - homeserver] Initializing LoRa module...");
+        node = new SX126X(null, 433, currentAddress, 22, false); // Use currentAddress (initially undefined, set later)
+        node.beginSerial("/dev/ttyS0"); // Initialize serial port
+        console.log("[LoRa Init - homeserver] Serial port initialized, waiting for address to be set."); // Log serial port init
+    }
+
+    if (node && currentAddress !== undefined && !receivingDataStarted) {
+        node.set(433, currentAddress, 22, false)
+            .then(() => {
+                console.log(`[LoRa Init - homeserver] LoRa module configured with address: ${currentAddress}.`);
+                startReceivingData(ws); // Start receiving LoRa data for this WebSocket client
+                receivingDataStarted = true;
+                ws.send(JSON.stringify({ type: 'status', message: 'LoRa module initialized and listening for data.' }));
+            })
+            .catch(error => {
+                console.error("[LoRa Init - homeserver] Error configuring LoRa module:", error);
+                ws.send(JSON.stringify({ type: 'error', message: 'Error configuring LoRa module. Check server console.' }));
+            });
+    } else if (node && receivingDataStarted) {
+        ws.send(JSON.stringify({ type: 'status', message: 'LoRa module already initialized and listening for data.' }));
+    } else if (node && currentAddress === undefined) {
+        ws.send(JSON.stringify({ type: 'status', message: 'LoRa module ready, waiting for current address to be set.' }));
+    }
+
+
     ws.on('message', message => {
-        console.log("[WebSocket] Message received:", message.toString()); // Log received message
+        console.log("[WebSocket] Message received:", message.toString());
         try {
             const msg = JSON.parse(message.toString());
-            console.log("[WebSocket] Parsed message type:", msg.type); // Log parsed message type
+            console.log("[WebSocket] Parsed message type:", msg.type);
             if (msg.type === 'set_current_address') {
-                console.log("[WebSocket] Handling set_current_address message"); // Log entering this block
+                console.log("[WebSocket] Handling set_current_address message");
                 currentAddress = parseInt(msg.address);
-                console.log("[WebSocket] Parsed currentAddress:", currentAddress); // Log parsed address
+                console.log("[WebSocket] Parsed currentAddress:", currentAddress);
                 if (!isNaN(currentAddress) && currentAddress >= 0 && currentAddress <= 65535) {
                     console.log(`Current node address set to: ${currentAddress}`);
-                    node = new SX126X(null, 433, currentAddress, 22, false);
-                    node.beginSerial("/dev/ttyS0");
-                    node.set(433, currentAddress, 22, false);
-                    console.log("[WebSocket] Calling startReceivingData(ws)"); // Log before calling startReceivingData
-                    startReceivingData(ws);
-                    receivingDataStarted = true;
-                    ws.send(JSON.stringify({ type: 'status', message: 'LoRa module initialized and listening for data.' }));
+                    if (!node) { // Initialize if not already done (unlikely, but for robustness)
+                        node = new SX126X(null, 433, currentAddress, 22, false);
+                        node.beginSerial("/dev/ttyS0");
+                    }
+                    node.set(433, currentAddress, 22, false) // Re-set LoRa parameters with new address
+                        .then(() => {
+                            console.log(`[LoRa] LoRa module re-configured with address: ${currentAddress}`);
+                            if (!receivingDataStarted) { // Start receiving only if not already started
+                                startReceivingData(ws);
+                                receivingDataStarted = true;
+                            }
+                            ws.send(JSON.stringify({ type: 'status', message: `LoRa module initialized and listening for data at address ${currentAddress}.` }));
+                        })
+                        .catch(error => {
+                            console.error("[LoRa] Error re-configuring LoRa module:", error);
+                            ws.send(JSON.stringify({ type: 'error', message: 'Error re-configuring LoRa module. Check server console.' }));
+                        });
+
                 } else {
                     ws.send(JSON.stringify({ type: 'error', message: 'Invalid current address.' }));
                 }
@@ -73,7 +109,7 @@ wss.on('connection', ws => {
 });
 
 
-function send_command(command, target_address, ws) { // Added 'ws' parameter to send response back to client
+function send_command(command, target_address, ws) {
     if (!node) {
         console.error("LoRa module not initialized.");
         return;
@@ -92,42 +128,42 @@ function send_command(command, target_address, ws) { // Added 'ws' parameter to 
         .then(() => {
             return node.set(node.freq, original_address, node.power, node.rssi);
         })
-        .then(async () => { // Added immediate receive here
+        .then(async () => {
             console.log(`Command sent to ${target_address}. Listening for immediate response...`);
             try {
-                const responseData = await waitForResponse(500); // Wait for response for max 500ms
+                const responseData = await waitForResponse(500);
                 if (responseData) {
-                    ws.send(JSON.stringify({ type: 'received_data', data: `Immediate Response to Command "${command}": ${responseData}` })); // Send immediate response
+                    ws.send(JSON.stringify({ type: 'received_data', data: `Immediate Response to Command "${command}": ${responseData}` }));
                 } else {
-                    ws.send(JSON.stringify({ type: 'status', message: `Command "${command}" sent, no immediate response received.` })); // Indicate no immediate response
+                    ws.send(JSON.stringify({ type: 'status', message: `Command "${command}" sent, no immediate response received.` }));
                 }
             } catch (receiveTimeoutError) {
-                ws.send(JSON.stringify({ type: 'status', message: `Command "${command}" sent, no immediate response within timeout.` })); // Indicate timeout
+                ws.send(JSON.stringify({ type: 'status', message: `Command "${command}" sent, no immediate response within timeout.` }));
             }
         })
         .catch(error => {
             console.error("Error in send_command:", error);
-            ws.send(JSON.stringify({ type: 'error', message: `Error sending command "${command}": ${error.message}` })); // Send error to client
+            ws.send(JSON.stringify({ type: 'error', message: `Error sending command "${command}": ${error.message}` }));
         });
 }
 
-function waitForResponse(timeout) { // Function to wait for a response with a timeout
+function waitForResponse(timeout) {
     return new Promise((resolve, reject) => {
         let responseReceived = false;
 
         const responseHandler = async (data) => {
-            if (responseReceived) return; // Prevent handling multiple responses if they arrive quickly
+            if (responseReceived) return;
             responseReceived = true;
 
-            node.serialPort.off('data', responseHandler); // Remove data listener
-            node.serialPort.off('error', errorHandler); // Remove error listener
+            node.serialPort.off('data', responseHandler);
+            node.serialPort.off('error', errorHandler);
 
             const receivedString = data.toString('utf8');
             try {
                 const response = JSON.parse(receivedString);
-                resolve(JSON.stringify(response)); // Resolve with JSON response
+                resolve(JSON.stringify(response));
             } catch (parseError) {
-                resolve(receivedString); // Resolve with raw string if JSON parsing fails
+                resolve(receivedString);
             }
         };
 
@@ -135,8 +171,8 @@ function waitForResponse(timeout) { // Function to wait for a response with a ti
             if (responseReceived) return;
             responseReceived = true;
 
-            node.serialPort.off('data', responseHandler); // Remove data listener
-            node.serialPort.off('error', errorHandler); // Remove error listener
+            node.serialPort.off('data', responseHandler);
+            node.serialPort.off('error', errorHandler);
             reject(err);
         };
 
@@ -146,16 +182,16 @@ function waitForResponse(timeout) { // Function to wait for a response with a ti
 
         setTimeout(() => {
             if (!responseReceived) {
-                node.serialPort.off('data', responseHandler); // Timeout - remove listener
-                node.serialPort.off('error', errorHandler); // Remove error listener
-                resolve(null); // Resolve with null to indicate no response within timeout
+                node.serialPort.off('data', responseHandler);
+                node.serialPort.off('error', errorHandler);
+                resolve(null);
             }
-        }, timeout); // Timeout after 'timeout' milliseconds
+        }, timeout);
     });
 }
 
 
-function startReceivingData(ws) { // Function to start continuous receiving (background)
+function startReceivingData(ws) { // Modified to filter and only send replies
     if (node && node.serialPort && node.serialPort.isOpen) {
         const receiveData = async () => {
             try {
@@ -163,14 +199,15 @@ function startReceivingData(ws) { // Function to start continuous receiving (bac
                 if (receivedData) {
                     try {
                         const response = JSON.parse(receivedData);
-                        if (response && response.reply) {
-                            ws.send(JSON.stringify({ type: 'received_data', data: `Background Message: ${JSON.stringify(response)}` })); // Indicate background message
+                        if (response && response.reply) { // Check if it's a valid JSON with "reply"
+                            ws.send(JSON.stringify({ type: 'received_data', data: `Reply: ${JSON.stringify(response)}` })); // Send only replies, indicate "Reply"
                         } else {
-                            ws.send(JSON.stringify({ type: 'received_data', data: `Background Message: ${receivedData}` })); // Indicate background message
+                            console.log("[LoRa Receive - homeserver] Received data (no reply property, not sent to client):", receivedData); // Log non-reply messages on server only
+                            // Do not send to WebSocket client if no "reply" property
                         }
                     } catch (parseError) {
-                        console.error("Error parsing received JSON data (background):", parseError);
-                        ws.send(JSON.stringify({ type: 'received_data', data: `Background Message (Unparsed): ${receivedData}` })); // Indicate background unparsed
+                        console.error("[LoRa Receive - homeserver] Error parsing JSON data (not sent to client):", parseError, receivedData); // Log JSON parsing errors on server
+                        // Do not send to WebSocket client if JSON parsing fails
                     }
                 }
             } catch (receiveError) {
@@ -185,11 +222,6 @@ function startReceivingData(ws) { // Function to start continuous receiving (bac
         ws.send(JSON.stringify({ type: 'error', message: 'Serial port not ready for background data reception.' }));
     }
 }
-
-
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
 
 
 const PORT = 3000;

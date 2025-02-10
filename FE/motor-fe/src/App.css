@@ -1,22 +1,75 @@
-/* src/App.css */
+/* src/App.css (Optional - for basic styling) */
 .App {
-  font-family: sans-serif;
-  text-align: center;
-  padding: 20px;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+h1 {
+    text-align: center;
+}
+
+div {
+    margin-bottom: 15px;
+}
+
+label {
+    display: inline-block;
+    width: 200px;
+    text-align: right;
+    margin-right: 10px;
+}
+
+input[type="number"] {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 100px;
 }
 
 button {
-  margin: 5px;
-  padding: 10px 20px;
-  font-size: 16px;
-  cursor: pointer;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+    margin-right: 10px;
 }
 
-ul {
-  list-style: none;
-  padding: 0;
+button:hover {
+    background-color: #0056b3;
 }
 
-li {
-  margin-bottom: 5px;
+#status-display {
+    margin-top: 20px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+}
+
+#receive-display {
+    margin-top: 20px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #f9f9f9;
+    white-space: pre-line; /* To respect line breaks */
+}
+
+#receive-display ul {
+    list-style-type: none; /* Remove bullet points */
+    padding: 0; /* Remove default padding */
+    margin: 0; /* Remove default margin */
+}
+
+#receive-display li {
+    padding: 5px 0; /* Add some vertical padding for list items */
+    border-bottom: 1px dotted #ccc; /* Optional: dotted line between messages */
+}
+
+#receive-display li:last-child {
+    border-bottom: none; /* Remove border from the last item */
 }
