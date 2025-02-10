@@ -134,7 +134,7 @@ class SX126X {
     async set(freq, addr, power, rssi, air_speed = 2400,
         net_id = 0, buffer_size = 240, crypt = 0,
         relay = false, lbt = false, wor = false) {
-            
+
         this.send_to = addr;
         this.addr = addr;
 
@@ -242,6 +242,33 @@ class SX126X {
                 reject(err);
             });
             // Optionally add a timeout to reject the promise if no data received within a certain time
+        });
+    }
+
+    async send(tx_data) {
+        return new Promise((resolve, reject) => {
+            this.m0Pin.digitalWrite(0);
+            this.m1Pin.digitalWrite(0);
+
+            const target_addr_high = (this.send_to >> 8) & 0xff;
+            const target_addr_low = this.send_to & 0xff;
+            const current_addr_high = (this.addr >> 8) & 0xff;
+            const current_addr_low = this.addr & 0xff;
+
+            const header = Buffer.from([target_addr_high, target_addr_low, current_addr_high, current_addr_low]);
+            const data = Buffer.from(tx_data, 'utf8'); // Encode string to Buffer
+            const bufferToSend = Buffer.concat([header, data]);
+
+
+            this.serialPort.write(bufferToSend, (err) => {
+                if (err) {
+                    console.error('Serial port send error:', err);
+                    reject(err);
+                } else {
+                    console.log('Serial port sent data:', bufferToSend);
+                    resolve();
+                }
+            });
         });
     }
 }
