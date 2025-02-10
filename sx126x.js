@@ -229,19 +229,25 @@ class SX126X {
         await new Promise(resolve => setTimeout(resolve, 100)); // time.sleep(0.1)
     }
 
-    async receive() {
-        // Implement the logic to read data from this.serialPort here
-        // and return the received data (or null if no data received).
-
-        // Example (you will need to adapt this based on your needs):
+    receive() { // Modified receive method - now returns a Promise that resolves with received data
         return new Promise((resolve, reject) => {
-            this.serialPort.once('data', (data) => {
-                resolve(data.toString('utf8')); // Or process data as needed
-            });
-            this.serialPort.once('error', (err) => {
+            const dataHandler = (data) => {
+                const receivedString = data.toString('utf8');
+                console.log(`[SerialPort] Received data: ${receivedString}`); // Optional logging
+                this.serialPort.off('data', dataHandler); // Remove listener after receiving data once
+                this.serialPort.off('error', errorHandler); // Remove error listener too
+                resolve(receivedString);
+            };
+
+            const errorHandler = (err) => {
+                console.error("[SerialPort] Error during receive:", err);
+                this.serialPort.off('data', dataHandler); // Remove data listener on error
+                this.serialPort.off('error', errorHandler); // Remove this error listener
                 reject(err);
-            });
-            // Optionally add a timeout to reject the promise if no data received within a certain time
+            };
+
+            this.serialPort.on('data', dataHandler);
+            this.serialPort.on('error', errorHandler);
         });
     }
 

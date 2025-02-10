@@ -29,7 +29,7 @@
         <div id="receive-display">Received messages:</div>
 
         <script>
-            const ws = new WebSocket('ws://192.168.100.16:3000'); // Or your server address
+            const ws = new WebSocket('ws://localhost:3000'); // Or your server address
 
             ws.onopen = () => {
                 console.log('WebSocket connected');
@@ -40,9 +40,9 @@
                 const message = JSON.parse(event.data);
                 if (message.type === 'status' || message.type === 'error') {
                     document.getElementById('status-display').innerText = 'Status: ' + message.message;
-                } else if (message.type === 'received_data') {
+                } else if (message.type === 'received_data') { // Handle 'received_data' messages
                     const receivedDisplay = document.getElementById('receive-display');
-                    receivedDisplay.innerText += '\nReceived: ' + message.data;
+                    receivedDisplay.innerText += '\nReceived: ' + message.data; // Append received data to the display
                 }
             };
 
@@ -64,7 +64,7 @@
             function sendCommand(command) {
                 const targetAddress = document.getElementById('targetAddress').value;
                 if (!isNaN(targetAddress) && targetAddress >= 0 && targetAddress <= 65535) {
-                    ws.send(JSON.stringify({ type: 'set_target_address', address: targetAddress })); // Update target address on server
+                    ws.send(JSON.stringify({ type: 'set_target_address', address: targetAddress }));
                     ws.send(JSON.stringify({ type: 'command', command: command }));
                 } else {
                     alert('Invalid target address.');
