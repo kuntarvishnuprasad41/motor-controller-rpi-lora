@@ -15,6 +15,7 @@ app.use(express.json());
 let node;
 let currentAddress;
 let targetAddress = 30;
+let receivingDataStarted = false; // Flag to track if receiving has started
 
 wss.on('connection', ws => {
     console.log('Client connected');
@@ -29,8 +30,15 @@ wss.on('connection', ws => {
                     node = new SX126X(null, 433, currentAddress, 22, false);
                     node.beginSerial("/dev/ttyS0");
                     node.set(433, currentAddress, 22, false);
-                    startReceivingData(ws); // Start listening for data and send to this WebSocket client
-                    ws.send(JSON.stringify({ type: 'status', message: 'LoRa module initialized and listening for data.' }));
+
+                    if (!receivingDataStarted) { // Start receiving data only once after address is set
+                        startReceivingData(ws);
+                        receivingDataStarted = true;
+                        ws.send(JSON.stringify({ type: 'status', message: 'LoRa module initialized and listening for data.' }));
+                    } else {
+                        ws.send(JSON.stringify({ type: 'status', message: 'LoRa module re-initialized.' })); // If address is reset, just re-initialize status
+                    }
+
                 } else {
                     ws.send(JSON.stringify({ type: 'error', message: 'Invalid current address.' }));
                 }
