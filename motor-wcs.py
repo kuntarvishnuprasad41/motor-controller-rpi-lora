@@ -93,18 +93,17 @@ try:
                     current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
                     print(f"[{current_time}] Received command: {command}")
 
-                    if command == "ON":
+                    if command == "ON" and prev_motor_state != "ON":
                         GPIO.output(24, GPIO.LOW)   # Ensure OFF relay is LOW
                         GPIO.output(23, GPIO.HIGH)  # Turn ON relay for motor
                         send_reply("Motor on", target_address)
                         prev_motor_state = "ON"
-                    elif command == "OFF":
+                    elif command == "OFF" and prev_motor_state != "OFF":
                         GPIO.output(23, GPIO.LOW)   # Turn OFF relay for motor
                         GPIO.output(24, GPIO.HIGH)  # Turn ON relay for OFF condition
                         time.sleep(0.5)
                         GPIO.output(24, GPIO.LOW)   # Turn OFF relay for OFF condition
-                        if(prev_motor_state == "ON"):
-                            send_reply("Motor off", target_address)
+                        send_reply("Motor off", target_address)
                         prev_motor_state = "OFF"
                     elif command == "STATUS":
                         status = "ON" if GPIO.input(23) else "OFF"
