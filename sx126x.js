@@ -254,32 +254,40 @@ class SX126X {
 
     receive() {
         return new Promise((resolve, reject) => {
+            let accumulatedData = ''; // Buffer to accumulate data
+
             const dataHandler = (data) => {
-                this.receiveBuffer = Buffer.concat([this.receiveBuffer, data]);
-                let processed = false;
+                console.log("[SerialPort - receive()] Raw Bytes Received (Before Filter):", data); // Log raw data BEFORE filter
 
-                while (this.receiveBuffer.length >= 4 && !processed) {
-                    const header = this.receiveBuffer.slice(0, 4);
-                    const payloadBuffer = this.receiveBuffer.slice(4);
-                    const payloadString = payloadBuffer.toString('utf8');
+                let filteredData = data; // Assume no prefix initially
+                const prefixBuffer = Buffer.from([0x00, 0x1e]);
 
-                    try {
-                        const parsedJSON = JSON.parse(payloadString);
-                        console.log(`[SerialPort - receive()] Complete JSON Received:`, parsedJSON);
-                        this.receiveBuffer = this.receiveBuffer.slice(4 + payloadBuffer.length);
-                        this.serialPort.off('data', dataHandler);
-                        this.serialPort.off('error', errorHandler);
-                        resolve(parsedJSON);
-                        processed = true;
-                    } catch (parseError) {
-                        if (parseError.message.startsWith('Unexpected end of JSON input')) {
-                            // Incomplete JSON, wait for more data
-                            break;
-                        } else {
-                            console.error("[SerialPort - receive()] Invalid JSON, discarding data:", payloadString);
-                            this.receiveBuffer = this.receiveBuffer.slice(4 + payloadBuffer.length);
-                        }
-                    }
+                // Robust prefix check: Does data START WITH <Buffer 00 1e>?
+                if (data.indexOf(prefixBuffer) === 0) {
+                    filteredData = data.subarray(prefixBuffer.length); // Remove prefix
+                    console.log("[SerialPort - receive()] Prefix <Buffer 00 1e> detected and removed. Filtered Data:", filteredData); // Log filtered data
+                } else {
+                    console.log("[SerialPort - receive()] No prefix <Buffer 00 1e> detected. Data:", data); // Log data if no prefix
+                }
+
+
+                const receivedString = filteredData.toString('utf8');
+                accumulatedData += receivedString; // Append to buffer
+
+                // Attempt to parse accumulated data as JSON
+                try {
+                    const parsedJSON = JSON.parse(accumulatedData);
+                    // JSON parsing successful!
+                    console.log(`[SerialPort - receive()] Complete JSON Received and Parsed:`, parsedJSON);
+                    this.serialPort.off('data', dataHandler);
+                    this.serialPort.off('error', errorHandler);
+                    resolve(JSON.stringify(parsedJSON));
+                    accumulatedData = ''; // Reset buffer
+
+                } catch (parseError) {
+                    // JSON parsing failed - Incomplete or invalid
+                    console.log("[SerialPort - receive()] Incomplete or Invalid JSON, accumulating more data...", accumulatedData);
+                    // console.error("[SerialPort - receive()] JSON Parse Error:", parseError); // Optional: Log parse error
                 }
             };
 
@@ -293,12 +301,9 @@ class SX126X {
             console.log("[SerialPort - receive()] Setting up data listener...");
             this.serialPort.on('data', dataHandler);
             this.serialPort.on('error', errorHandler);
-
-            // Immediately process any existing data in the buffer
-            dataHandler(Buffer.alloc(0));
         });
     }
-
+    
     async send(tx_data) {
         return new Promise((resolve, reject) => {
             this.m0Pin.digitalWrite(0);
