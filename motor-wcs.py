@@ -36,6 +36,7 @@ current_address = 30
 
 
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)
+prev_state = "OFF"
 
 def send_command(command, target_address):
     """Sends a command."""
@@ -110,10 +111,12 @@ try:
 
         elif GPIO.input(DOUT_PIN):
             print("On Detected")
-            send_command("ON", target_address)
+            if prev_state == "OFF":
+                send_command("ON", target_address)
             time.sleep(1)
-            send_command("OFF", target_address)
-            time.sleep(1)
+            prev_state = "ON"
+            # send_command("OFF", target_address)
+            # time.sleep(1)
 
         # if GPIO.input(DOUT_PIN) and not GPIO.input(23) and not GPIO.input(24):
         #     GPIO.output(24, GPIO.LOW)   # Turn OFF relay 24 (ensure only one is on)
