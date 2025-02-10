@@ -21,24 +21,23 @@ wss.on('connection', ws => {
     console.log('Client connected');
 
     ws.on('message', message => {
+        console.log("[WebSocket] Message received:", message.toString()); // Log received message
         try {
             const msg = JSON.parse(message.toString());
+            console.log("[WebSocket] Parsed message type:", msg.type); // Log parsed message type
             if (msg.type === 'set_current_address') {
+                console.log("[WebSocket] Handling set_current_address message"); // Log entering this block
                 currentAddress = parseInt(msg.address);
+                console.log("[WebSocket] Parsed currentAddress:", currentAddress); // Log parsed address
                 if (!isNaN(currentAddress) && currentAddress >= 0 && currentAddress <= 65535) {
                     console.log(`Current node address set to: ${currentAddress}`);
                     node = new SX126X(null, 433, currentAddress, 22, false);
                     node.beginSerial("/dev/ttyS0");
                     node.set(433, currentAddress, 22, false);
-
-                    if (!receivingDataStarted) {
-                        startReceivingData(ws);
-                        receivingDataStarted = true;
-                        ws.send(JSON.stringify({ type: 'status', message: 'LoRa module initialized and listening for data.' }));
-                    } else {
-                        ws.send(JSON.stringify({ type: 'status', message: 'LoRa module re-initialized.' }));
-                    }
-
+                    console.log("[WebSocket] Calling startReceivingData(ws)"); // Log before calling startReceivingData
+                    startReceivingData(ws);
+                    receivingDataStarted = true;
+                    ws.send(JSON.stringify({ type: 'status', message: 'LoRa module initialized and listening for data.' }));
                 } else {
                     ws.send(JSON.stringify({ type: 'error', message: 'Invalid current address.' }));
                 }
@@ -52,7 +51,7 @@ wss.on('connection', ws => {
                 }
             } else if (msg.type === 'command') {
                 if (node) {
-                    send_command(msg.command, targetAddress, ws); // Pass WebSocket client to send_command
+                    send_command(msg.command, targetAddress, ws);
                     ws.send(JSON.stringify({ type: 'status', message: `Command "${msg.command}" sent to ${targetAddress}` }));
                 } else {
                     ws.send(JSON.stringify({ type: 'error', message: 'LoRa module not initialized. Set current address first.' }));
