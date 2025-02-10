@@ -23,6 +23,7 @@ GPIO.setup(DOUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 
 
+
 if os.isatty(sys.stdin.fileno()):  # Check if running in a terminal
     old_settings = termios.tcgetattr(sys.stdin)
     tty.setcbreak(sys.stdin.fileno())
@@ -37,6 +38,7 @@ current_address = 30
 
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)
 prev_state = "OFF"
+on_from_remote = False
 
 def send_command(command, target_address):
     """Sends a command."""
@@ -89,6 +91,7 @@ try:
                         
                         # GPIO.output(23, GPIO.LOW)  # Turn ON relay 23
                         send_reply("Motor on", target_address)  # Send "Motor on" message
+                        on_from_remote = True
                         prev_state = "ON"
                     elif command == "OFF":
                         GPIO.output(23, GPIO.LOW)   # Turn OFF relay 23
@@ -96,6 +99,7 @@ try:
                         time.sleep(0.5)
                         GPIO.output(24, GPIO.LOW)  # Turn ON relay 24
                         send_reply("Motor off", target_address) # Send "Motor off" message
+                        on_from_remote = False
                         prev_state = "OFF"
                     elif command == "STATUS":
                         # Get status (ON/OFF) and send it.  This will be the most useful.
@@ -122,7 +126,7 @@ try:
             # send_command("OFF", target_address)
             # time.sleep(1)
         elif not GPIO.input(DOUT_PIN):
-            if(prev_state) == "ON":
+            if(prev_state) == "ON" and not on_from_remote:
                 GPIO.output(23, GPIO.LOW)   # Turn OFF relay 23
                 GPIO.output(24, GPIO.HIGH)  # Turn ON relay 24
                 time.sleep(0.5)
