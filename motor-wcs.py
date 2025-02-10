@@ -17,7 +17,8 @@ GPIO.output(23, GPIO.LOW)
 GPIO.output(24, GPIO.LOW)
 
 DOUT_PIN = 25
-GPIO.setup(DOUT_PIN, GPIO.IN)
+GPIO.setup(DOUT_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+
 
 
 
@@ -105,6 +106,7 @@ try:
 
         value = GPIO.input(DOUT_PIN)  # Read digital output
         print(f"Current Detected: {value}")
+        time.sleep(1)
 
         # elif GPIO.input(DOUT_PIN):
         #     print("On Detected")
