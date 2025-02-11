@@ -22,7 +22,7 @@ on_from_remote = False
 
 # Noise Filtering Variables
 stable_zero_count = 0
-ZERO_THRESHOLD = 20  
+ZERO_THRESHOLD = 50  
 
 # Initialize LoRa
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)
