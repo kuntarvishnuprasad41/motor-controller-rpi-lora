@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import "./App.css"; // You can create an App.css for styling
 
 function App() {
-  const [wsIp, setWsIp] = useState("192.168.100.16"); // Default IP
+  const [wsIp, setWsIp] = useState("https://192.168.100.16"); // Default IP
   const [currentAddress, setCurrentAddressValue] = useState("");
   const [targetAddress, setTargetAddressValue] = useState(30);
   const [statusMessage, setStatusMessage] = useState(
