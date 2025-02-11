@@ -22,7 +22,8 @@ wss.on('connection', ws => {
     if (!node) { // Initialize LoRa module only once per server start, if not already initialized
         console.log("[LoRa Init - homeserver] Initializing LoRa module...");
         node = new SX126X(null, 433, currentAddress, 22, false); // Use currentAddress (initially undefined, set later)
-        node.beginSerial("/dev/ttyS0"); // Initialize serial port
+        // node.beginSerial("/dev/ttyS0"); // Initialize serial port
+        node.beginSerial("/dev/serial0")
         console.log("[LoRa Init - homeserver] Serial port initialized, waiting for address to be set."); // Log serial port init
     }
 
