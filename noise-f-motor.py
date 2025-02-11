@@ -83,7 +83,8 @@ try:
 
         # **Noise Filtering Logic for Motor Control**
         current_signal = GPIO.input(DOUT_PIN)
-        print(f"Stable Zero Count: {current_signal}")
+        if stable_zero_count > 5:
+            print(f"Stable Zero Count: {current_signal}")
 
 
         if current_signal:  # If sensor detects current
