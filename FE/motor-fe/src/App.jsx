@@ -15,7 +15,7 @@ function App() {
     if (!wsIp) return;
     const wsProtocol =
       window.location.protocol === "https:" ? "wss://" : "ws://";
-    const websocket = new WebSocket(`${wsProtocol}${wsIp}:3000`); // Adjust port as needed
+    const websocket = new WebSocket(`${wsIp}:3000`); // Adjust port as needed
 
     websocket.onopen = () => {
       console.log("WebSocket connected");
