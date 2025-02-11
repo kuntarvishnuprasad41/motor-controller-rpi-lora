@@ -1,5 +1,5 @@
 import sys
-import sx126x
+import sx126xtester
 import time
 import select
 import termios
