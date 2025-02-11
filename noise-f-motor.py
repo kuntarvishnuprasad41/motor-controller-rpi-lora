@@ -81,10 +81,14 @@ try:
             except json.JSONDecodeError:
                 print(f"Received non-JSON data: {received_data}")
 
+        sc = 0
         # **Noise Filtering Logic for Motor Control**
         current_signal = GPIO.input(DOUT_PIN)
-        if stable_zero_count > 50:
-            print(f"Stable Zero Count: {current_signal}")
+        if stable_zero_count > 50 and sc==0:
+            print(f"Stable Zero Count: {stable_zero_count}")
+            sc = sc+1
+        else:
+            sc = 0
 
 
         if current_signal:  # If sensor detects current
@@ -109,7 +113,7 @@ try:
                 send_command("OFF", target_address)
                 prev_state = "OFF"
                 stable_zero_count = 0  # Reset counter
-                
+
             if stable_zero_count >= ZERO_THRESHOLD and prev_state == "OFF":
                 stable_zero_count = 10  # Reset counter
 
