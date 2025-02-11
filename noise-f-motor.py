@@ -83,7 +83,7 @@ try:
 
         # **Noise Filtering Logic for Motor Control**
         current_signal = GPIO.input(DOUT_PIN)
-        if stable_zero_count > 5:
+        if stable_zero_count > 50:
             print(f"Stable Zero Count: {current_signal}")
 
 
