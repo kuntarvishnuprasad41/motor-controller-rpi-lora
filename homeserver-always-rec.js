@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const cors =require('cors') ;
 const path = require('path');
 
 const SX126X = require('./sx126x');
@@ -8,7 +9,6 @@ const SX126X = require('./sx126x');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-import cors from 'cors';
 
 app.use(express.json()); //  Keep JSON parsing middleware
 app.use(cors());
