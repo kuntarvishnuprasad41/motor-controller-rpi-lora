@@ -1,8 +1,8 @@
-// src/App.js
-import  { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import "./App.css"; // You can create an App.css for styling
 
 function App() {
+  const [wsIp, setWsIp] = useState("192.168.100.16"); // Default IP
   const [currentAddress, setCurrentAddressValue] = useState("");
   const [targetAddress, setTargetAddressValue] = useState(30);
   const [statusMessage, setStatusMessage] = useState(
@@ -12,7 +12,8 @@ function App() {
   const [ws, setWs] = useState(null);
 
   useEffect(() => {
-    const websocket = new WebSocket("ws://192.168.100.16:3000"); // Replace with your server address
+    if (!wsIp) return;
+    const websocket = new WebSocket(`ws://${wsIp}:3000`); // Use dynamic IP
 
     websocket.onopen = () => {
       console.log("WebSocket connected");
@@ -45,7 +46,6 @@ function App() {
             e,
             message.data
           );
-          // Optionally handle non-JSON messages if needed, or just ignore as per requirement
         }
       }
     };
@@ -65,7 +65,7 @@ function App() {
     return () => {
       websocket.close();
     };
-  }, []); // Empty dependency array ensures this effect runs only once on mount and unmount
+  }, [wsIp]); // Depend on wsIp to reconnect when it changes
 
   const handleSetCurrentAddress = () => {
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -99,6 +99,16 @@ function App() {
   return (
     <div className="App">
       <h1>LoRa Home Controller</h1>
+
+      <div>
+        <label htmlFor="wsIp">WebSocket Server IP:</label>
+        <input
+          type="text"
+          id="wsIp"
+          value={wsIp}
+          onChange={(e) => setWsIp(e.target.value)}
+        />
+      </div>
 
       <div>
         <label htmlFor="currentAddress">Current Node Address (0-65535):</label>
