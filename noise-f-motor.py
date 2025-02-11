@@ -83,9 +83,11 @@ try:
 
         # **Noise Filtering Logic for Motor Control**
         current_signal = GPIO.input(DOUT_PIN)
+        print(f"Stable Zero Count: {current_signal}")
+
 
         if current_signal:  # If sensor detects current
-            print("On Detected")
+            print("On Detected, {current_signal}")
             stable_zero_count = 0  # Reset counter
             if prev_state == "OFF":
                 GPIO.output(24, GPIO.LOW)   # Turn OFF relay 24
@@ -95,7 +97,7 @@ try:
 
         else:  # Possible OFF condition
             stable_zero_count += 1
-            print(f"Stable Zero Count: {stable_zero_count}")
+            # print(f"Stable Zero Count: {stable_zero_count}")
 
             if stable_zero_count >= ZERO_THRESHOLD and prev_state == "ON":
                 GPIO.output(23, GPIO.LOW)   # Turn OFF relay 23
