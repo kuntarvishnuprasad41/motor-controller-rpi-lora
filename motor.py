@@ -22,7 +22,7 @@ on_from_remote = False
 
 # Noise Filtering Variables
 stable_zero_count = 0
-ZERO_THRESHOLD = 100 
+ZERO_THRESHOLD = 100   
 
 # Initialize LoRa
 node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)
@@ -83,8 +83,7 @@ try:
 
         # **Noise Filtering Logic for Motor Control**
         current_signal = GPIO.input(DOUT_PIN)
-        if stable_zero_count>=ZERO_THRESHOLD:
-            print(f"Stable Zero Count: {stable_zero_count}")
+        print(f"Stable Zero Count: {current_signal}")
 
 
         if current_signal:  # If sensor detects current
@@ -109,8 +108,6 @@ try:
                 send_command("OFF", target_address)
                 prev_state = "OFF"
                 stable_zero_count = 0  # Reset counter
-            if stable_zero_count >= ZERO_THRESHOLD and prev_state == "OFF":
-                stable_zero_count = 10  # Reset counter
 
         time.sleep(0.001)  # Small delay to reduce CPU usage
 
