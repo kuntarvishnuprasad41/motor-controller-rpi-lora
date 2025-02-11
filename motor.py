@@ -109,6 +109,8 @@ try:
                 send_command("OFF", target_address)
                 prev_state = "OFF"
                 stable_zero_count = 0  # Reset counter
+            if stable_zero_count >= ZERO_THRESHOLD and prev_state == "OFF":
+                stable_zero_count = 10  # Reset counter
 
         time.sleep(0.001)  # Small delay to reduce CPU usage
 
