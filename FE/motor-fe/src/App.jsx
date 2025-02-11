@@ -13,7 +13,9 @@ function App() {
 
   useEffect(() => {
     if (!wsIp) return;
-    const websocket = new WebSocket(`ws://${wsIp}:3000`); // Use dynamic IP
+    const wsProtocol =
+      window.location.protocol === "https:" ? "wss://" : "ws://";
+    const websocket = new WebSocket(`${wsProtocol}localhost:3000`); // Adjust port as needed
 
     websocket.onopen = () => {
       console.log("WebSocket connected");

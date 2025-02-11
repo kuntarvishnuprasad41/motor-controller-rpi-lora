@@ -8,8 +8,11 @@ const SX126X = require('./sx126x');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
+import cors from 'cors';
 
 app.use(express.json()); //  Keep JSON parsing middleware
+app.use(cors());
+
 
 let node;
 let currentAddress;
