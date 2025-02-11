@@ -14,7 +14,7 @@ time.sleep(1)
 print("Enter curr node address (0-65535):")
 current_address = int(input())
 
-node = sx126x.sx126x(serial_num="/dev/ttyS0", freq=433, addr=current_address, power=22, rssi=False)
+node = sx126x.sx126x(serial_num="/dev/ttyAMA0", freq=433, addr=current_address, power=22, rssi=False)
 
 def send_command(command, target_address):
     """Sends a command."""
