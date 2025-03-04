@@ -1,7 +1,7 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
-const cors =require('cors') ;
+const cors = require('cors');
 const path = require('path');
 
 const SX126X = require('./sx126x');
@@ -25,8 +25,8 @@ wss.on('connection', ws => {
     if (!node) { // Initialize LoRa module only once per server start, if not already initialized
         console.log("[LoRa Init - homeserver] Initializing LoRa module...");
         node = new SX126X(null, 433, currentAddress, 22, false); // Use currentAddress (initially undefined, set later)
-        // node.beginSerial("/dev/ttyS0"); // Initialize serial port
-        node.beginSerial("/dev/ttyAMA0")
+        node.beginSerial("/dev/ttyS0"); // Initialize serial port
+        // node.beginSerial("/dev/ttyAMA0")
         console.log("[LoRa Init - homeserver] Serial port initialized, waiting for address to be set."); // Log serial port init
     }
 
@@ -136,6 +136,7 @@ function send_command(command, target_address, ws) {
             console.log(`Command sent to ${target_address}. Listening for immediate response...`);
             try {
                 const responseData = await waitForResponse(500);
+                console.log("Received response 1111111111111111:", responseData);
                 if (responseData) {
                     ws.send(JSON.stringify({ type: 'received_data', data: `Immediate Response to Command "${command}": ${responseData}` }));
                 } else {
@@ -163,6 +164,8 @@ function waitForResponse(timeout) {
             node.serialPort.off('error', errorHandler);
 
             const receivedString = data.toString('utf8');
+            console.log("Received response 1111111111111111:", receivedString);
+
             try {
                 const response = JSON.parse(receivedString);
                 resolve(JSON.stringify(response));
@@ -200,6 +203,8 @@ function startReceivingData(ws) {
         const receiveData = async () => {
             try {
                 const receivedData = await node.receive();
+                console.log("Received data (background):", receivedData);
+
                 if (receivedData) {
                     try {
                         const response = JSON.parse(receivedData);
